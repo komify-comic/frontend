@@ -7,18 +7,29 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
-      - name: Test Runner
-        run: echo "RUNNER WORKING"
-
-      - name: Pull latest code
+      - name: Frontend Deploy
         run: |
+          set -e
+
+          echo "=== FRONTEND AUTO DEPLOY ==="
+
           cd /srv/dev/frontend
-          git pull origin dev
 
-      - name: Restart frontend
-        run: |
+          echo "=== CURRENT BRANCH ==="
+          git branch
+
+          echo "=== FETCH LATEST ==="
+          git fetch origin
+
+          echo "=== RESET TO ORIGIN/DEV ==="
+          git reset --hard origin/dev
+
+          echo "=== BUILD & RESTART FRONTEND ==="
           cd /srv/dev/compose
-          docker compose restart frontend
+
+          docker compose up -d --build frontend
+
+          echo "=== FRONTEND DEPLOY SUCCESS ==="
