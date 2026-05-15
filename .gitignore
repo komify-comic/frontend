@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+!.gitea/
+!.gitea/workflows/
+!.gitea/workflows/dev.yml
