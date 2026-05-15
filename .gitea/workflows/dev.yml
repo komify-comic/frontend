@@ -1,0 +1,24 @@
+name: Frontend Dev Auto Deploy
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Test Runner
+        run: echo "RUNNER WORKING"
+
+      - name: Pull latest code
+        run: |
+          cd /srv/dev/frontend
+          git pull origin dev
+
+      - name: Restart frontend
+        run: |
+          cd /srv/dev/compose
+          docker compose restart frontend
