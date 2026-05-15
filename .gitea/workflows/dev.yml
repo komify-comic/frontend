@@ -11,19 +11,16 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
+    container:
+      image: alpine:latest
+
     steps:
-      - name: Check Environment
+      - name: Install Git & Docker CLI
         run: |
-          echo "=== RUNNER ACTIVE ==="
-          pwd
-          ls -la /srv/dev
+          apk add --no-cache git docker-cli
 
       - name: Deploy Frontend
         run: |
-          set -e
-
-          echo "=== FRONTEND DEPLOY START ==="
-
           cd /srv/dev/frontend
 
           git fetch origin
@@ -32,5 +29,3 @@ jobs:
           cd /srv/dev/compose
 
           docker compose up -d --build frontend
-
-          echo "=== FRONTEND DEPLOY DONE ==="
