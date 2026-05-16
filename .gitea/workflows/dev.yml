@@ -12,14 +12,23 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Deploy Frontend via SSH
-        uses: gitea/ssh-action@v0.1.6
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          key: ${{ secrets.SSH_KEY }}
-          port: 22
-          script: |
+      - name: Deploy Frontend via Native SSH
+        run: |
+          set -e
+          
+          # 1. Siapkan folder .ssh di dalam runner
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          
+          # 2. Tulis Private Key dari Secrets ke dalam file rahasia
+          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          
+          # 3. Matikan pengecekan host key agar tidak meminta konfirmasi yes/no secara interaktif
+          echo -e "Host *\n\tStrictHostKeyChecking no\n" > ~/.ssh/config
+          
+          # 4. Jalankan perintah deploy langsung menggunakan command ssh bawaan
+          ssh -i ~/.ssh/id_ed25519 ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} << 'EOF'
             set -e
             echo "=== FRONTEND DEPLOY START ==="
             
@@ -31,3 +40,4 @@ jobs:
             docker compose up -d --build frontend
             
             echo "=== FRONTEND DEPLOY DONE ==="
+          EOF
