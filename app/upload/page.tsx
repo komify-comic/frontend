@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { v7 as uuidv7 } from "uuid";
 import Link from "next/link";
 import {
@@ -15,6 +15,20 @@ import {
 } from "lucide-react";
 import Cropper from "react-easy-crop";
 import { useId } from "react";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { getCroppedImg } from "./cropImage";
 
 type Chapter = {
@@ -26,9 +40,74 @@ type Chapter = {
   pages: string[];
 };
 
+// COMPONENT SORTABLE CHAPTER ITEM
+function SortableChapter({
+  chapter,
+  children,
+}: {
+  chapter: Chapter;
+  children: (props: any) => React.ReactNode;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: chapter.id,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={isDragging ? "opacity-50" : ""}
+    >
+      {children({
+        dragHandleProps: {
+          ...attributes,
+          ...listeners,
+        },
+      })}
+    </div>
+  );
+}
+
 export default function UploadPage() {
   const uniqueInputId = useId();
   const [activeTemplate, setActiveTemplate] = useState<string>("doujinshi");
+
+  // DRAG & DROP SETUP
+  const pointerSensor = useSensor(PointerSensor, {
+    activationConstraint: {
+      distance: 8,
+    },
+  });
+  const sensors = useSensors(pointerSensor);
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+  const handleDragEnd = (event: any) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setChapters((items) => {
+      const oldIndex = items.findIndex((i) => i.id === active.id);
+      const newIndex = items.findIndex((i) => i.id === over.id);
+      const reordered = arrayMove(items, oldIndex, newIndex);
+      return reordered.map((chapter, index) => ({
+        ...chapter,
+        main: index + 1,
+      }));
+    });
+  };
 
   // PAGES STATE MANAGEMENT
   const [activeUploadChapterId, setActiveUploadChapterId] = useState<
@@ -195,7 +274,6 @@ export default function UploadPage() {
       }));
     });
   };
-
   const updateChapter = (
     id: string,
     field: keyof Chapter,
@@ -218,6 +296,12 @@ export default function UploadPage() {
     }
     return a.sub - b.sub;
   });
+
+  if (!isMounted) {
+    return (
+      <div className="space-y-4 animate-pulse bg-zinc-900/20 rounded-3xl h-96 w-full" />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
@@ -417,221 +501,270 @@ export default function UploadPage() {
           </div>
 
           {/* Chapter Items */}
-          <div className="space-y-4">
-            {sortedChapters.map((chapter) => (
-              <div
-                key={chapter.id}
-                className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 transition hover:border-indigo-500/40"
-              >
-                {/* Header Row */}
-                <div className="mb-4 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-zinc-500">Chapter</span>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={sortedChapters.map((c) => c.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-4">
+                {sortedChapters.map((chapter) => (
+                  <SortableChapter key={chapter.id} chapter={chapter}>
+                    {({ dragHandleProps }: any) => (
+                      <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 transition hover:border-indigo-500/40">
+                        {/* Header Row */}
+                        <div className="mb-4 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            {/* Drag Handle */}
+                            <button
+                              {...dragHandleProps}
+                              className="cursor-grab rounded-xl border border-zinc-800 bg-zinc-900 p-2 text-zinc-500 transition hover:border-indigo-500 hover:text-white active:cursor-grabbing"
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="14"
+                                height="14"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <circle cx="9" cy="5" r="1" />
+                                <circle cx="9" cy="12" r="1" />
+                                <circle cx="9" cy="19" r="1" />
+                                <circle cx="15" cy="5" r="1" />
+                                <circle cx="15" cy="12" r="1" />
+                                <circle cx="15" cy="19" r="1" />
+                              </svg>
+                            </button>
 
-                    {/* Chapter Number (1.2 style) */}
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        value={chapter.main}
-                        onChange={(e) =>
-                          updateChapter(
-                            chapter.id,
-                            "main",
-                            Number(e.target.value),
-                          )
-                        }
-                        className="w-14 rounded-xl border border-zinc-800 bg-zinc-900 px-2 py-2 text-center text-sm font-semibold text-indigo-300 outline-none focus:border-indigo-500"
-                      />
+                            {/* Chapter Inputs */}
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-zinc-500">
+                                Chapter
+                              </span>
 
-                      <span className="text-zinc-500">.</span>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="number"
+                                  value={chapter.main}
+                                  onChange={(e) =>
+                                    updateChapter(
+                                      chapter.id,
+                                      "main",
+                                      Number(e.target.value),
+                                    )
+                                  }
+                                  className="w-14 rounded-xl border border-zinc-800 bg-zinc-900 px-2 py-2 text-center text-sm font-semibold text-indigo-300 outline-none focus:border-indigo-500"
+                                />
 
-                      <input
-                        type="number"
-                        value={chapter.sub}
-                        onChange={(e) =>
-                          updateChapter(
-                            chapter.id,
-                            "sub",
-                            Number(e.target.value),
-                          )
-                        }
-                        className="w-14 rounded-xl border border-zinc-800 bg-zinc-900 px-2 py-2 text-center text-sm font-semibold text-indigo-300 outline-none focus:border-indigo-500"
-                      />
-                    </div>
-                  </div>
+                                <span className="text-zinc-500">.</span>
 
-                  {/* Actions */}
-                  <div className="flex items-center gap-3 text-xs">
-                    <button
-                      onClick={() => removeChapter(chapter.id)}
-                      className="rounded-xl p-2 text-zinc-500 transition hover:bg-zinc-800 hover:text-red-400"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
+                                <input
+                                  type="number"
+                                  value={chapter.sub}
+                                  onChange={(e) =>
+                                    updateChapter(
+                                      chapter.id,
+                                      "sub",
+                                      Number(e.target.value),
+                                    )
+                                  }
+                                  className="w-14 rounded-xl border border-zinc-800 bg-zinc-900 px-2 py-2 text-center text-sm font-semibold text-indigo-300 outline-none focus:border-indigo-500"
+                                />
+                              </div>
+                            </div>
+                          </div>
 
-                {/* Content Grid */}
-                <div className="grid gap-3 md:grid-cols-4">
-                  {/* Title */}
-                  <input
-                    type="text"
-                    placeholder="Chapter Title"
-                    value={chapter.title}
-                    onChange={(e) =>
-                      updateChapter(chapter.id, "title", e.target.value)
-                    }
-                    className="md:col-span-3 w-full rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 outline-none transition focus:border-indigo-500"
-                  />
-
-                  {/* Language */}
-                  <select
-                    value={chapter.language}
-                    onChange={(e) =>
-                      updateChapter(chapter.id, "language", e.target.value)
-                    }
-                    className="md:col-span-1 w-full rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 outline-none transition focus:border-indigo-500"
-                  >
-                    <option value="en">English</option>
-                    <option value="jp">Japanese</option>
-                    <option value="kr">Korean</option>
-                    <option value="id">Indonesian</option>
-                  </select>
-
-                  {/* Upload */}
-                  {chapter.pages.length === 0 ? (
-                    // 1. TAMPILAN JIKA BELUM ADA GAMBAR (Tombol Upload Sederhana & Bersih)
-                    <label
-                      htmlFor={uniqueInputId}
-                      className="md:col-span-5 flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/20 px-4 py-7 text-zinc-400 transition duration-200 hover:border-indigo-500/50 hover:bg-zinc-900/50 hover:text-indigo-300"
-                    >
-                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 shadow-xs">
-                        <svg
-                          xmlns="http://w3.org"
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                          <polyline points="17 8 12 3 7 8" />
-                          <line x1="12" y1="3" x2="12" y2="15" />
-                        </svg>
-                      </div>
-                      <div className="text-center">
-                        <span className="text-xs font-semibold block text-zinc-300">
-                          Upload Chapter Pages
-                        </span>
-                        <span className="text-[10px] text-zinc-600">
-                          JPG, PNG or ZIP • Drag & drop
-                        </span>
-                      </div>
-
-                      <input
-                        type="file"
-                        id={uniqueInputId}
-                        accept="image/*"
-                        className="hidden"
-                        multiple
-                        onChange={(e) => handlePagesChange(e, chapter.id)}
-                        onClick={(e) => {
-                          (e.target as HTMLInputElement).value = "";
-                        }}
-                      />
-                    </label>
-                  ) : (
-                    // 2. TAMPILAN MODERN JIKA SUDAH ADA GAMBAR (Sleek Horizontal Badge)
-                    <div className="md:col-span-5 flex items-center justify-between gap-3 rounded-2xl border border-indigo-500/20 bg-indigo-500/5 p-3 shadow-xs shadow-indigo-500/2">
-                      {/* Sisi Kiri: Status & Jumlah File */}
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                          <svg
-                            xmlns="http://w3.org"
-                            width="15"
-                            height="15"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2.5"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <rect
-                              x="3"
-                              y="3"
-                              width="18"
-                              height="18"
-                              rx="2"
-                              ry="2"
-                            />
-                            <circle cx="8.5" cy="8.5" r="1.5" />
-                            <polyline points="21 15 16 10 5 21" />
-                          </svg>
+                          {/* Actions */}
+                          <div className="flex items-center gap-3 text-xs">
+                            <button
+                              onClick={() => removeChapter(chapter.id)}
+                              className="rounded-xl p-2 text-zinc-500 transition hover:bg-zinc-800 hover:text-red-400"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-bold text-zinc-200 truncate">
-                            Pages Loaded Successfully
-                          </p>
-                          <p className="text-[10px] font-medium text-indigo-400/80">
-                            {chapter.pages.length} images ready
-                          </p>
-                        </div>
-                      </div>
 
-                      {/* Sisi Kanan: Grup Tombol Aksi yang Efisien */}
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        {/* Tombol Manage / Edit (Membuka Popup Grid) */}
-                        <button
-                          onClick={() =>
-                            handleOpenPreview(chapter.id, chapter.pages)
-                          }
-                          className="rounded-xl bg-zinc-900 border border-zinc-800 px-3 py-2 text-xs font-semibold text-zinc-300 transition hover:border-indigo-500 hover:text-white"
-                        >
-                          Manage
-                        </button>
-
-                        {/* Tombol Re-upload Cepat (Menimpa file tanpa harus buka modal) */}
-                        <label
-                          htmlFor={uniqueInputId}
-                          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-400 transition hover:border-zinc-700 hover:text-zinc-200"
-                          title="Replace all files"
-                        >
-                          <svg
-                            xmlns="http://w3.org"
-                            width="14"
-                            height="14"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2.5"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
-                          </svg>
+                        {/* Content Grid */}
+                        <div className="grid gap-3 md:grid-cols-4">
+                          {/* Title */}
                           <input
-                            type="file"
-                            id={uniqueInputId}
-                            accept="image/*"
-                            className="hidden"
-                            multiple
-                            onChange={(e) => handlePagesChange(e, chapter.id)}
-                            onClick={(e) => {
-                              (e.target as HTMLInputElement).value = "";
-                            }}
+                            type="text"
+                            placeholder="Chapter Title"
+                            value={chapter.title}
+                            onChange={(e) =>
+                              updateChapter(chapter.id, "title", e.target.value)
+                            }
+                            className="md:col-span-3 w-full rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 outline-none transition focus:border-indigo-500"
                           />
-                        </label>
+
+                          {/* Language */}
+                          <select
+                            value={chapter.language}
+                            onChange={(e) =>
+                              updateChapter(
+                                chapter.id,
+                                "language",
+                                e.target.value,
+                              )
+                            }
+                            className="md:col-span-1 w-full rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 outline-none transition focus:border-indigo-500"
+                          >
+                            <option value="en">English</option>
+                            <option value="jp">Japanese</option>
+                            <option value="kr">Korean</option>
+                            <option value="id">Indonesian</option>
+                          </select>
+
+                          {/* Upload */}
+                          {chapter.pages.length === 0 ? (
+                            // 1. TAMPILAN JIKA BELUM ADA GAMBAR (Tombol Upload Sederhana & Bersih)
+                            <label
+                              htmlFor={uniqueInputId}
+                              className="md:col-span-5 flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/20 px-4 py-7 text-zinc-400 transition duration-200 hover:border-indigo-500/50 hover:bg-zinc-900/50 hover:text-indigo-300"
+                            >
+                              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 shadow-xs">
+                                <svg
+                                  xmlns="http://w3.org"
+                                  width="16"
+                                  height="16"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2.5"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                  <polyline points="17 8 12 3 7 8" />
+                                  <line x1="12" y1="3" x2="12" y2="15" />
+                                </svg>
+                              </div>
+                              <div className="text-center">
+                                <span className="text-xs font-semibold block text-zinc-300">
+                                  Upload Chapter Pages
+                                </span>
+                                <span className="text-[10px] text-zinc-600">
+                                  JPG, PNG or ZIP • Drag & drop
+                                </span>
+                              </div>
+
+                              <input
+                                type="file"
+                                id={uniqueInputId}
+                                accept="image/*"
+                                className="hidden"
+                                multiple
+                                onChange={(e) =>
+                                  handlePagesChange(e, chapter.id)
+                                }
+                                onClick={(e) => {
+                                  (e.target as HTMLInputElement).value = "";
+                                }}
+                              />
+                            </label>
+                          ) : (
+                            // 2. TAMPILAN MODERN JIKA SUDAH ADA GAMBAR (Sleek Horizontal Badge)
+                            <div className="md:col-span-5 flex items-center justify-between gap-3 rounded-2xl border border-indigo-500/20 bg-indigo-500/5 p-3 shadow-xs shadow-indigo-500/2">
+                              {/* Sisi Kiri: Status & Jumlah File */}
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                                  <svg
+                                    xmlns="http://w3.org"
+                                    width="15"
+                                    height="15"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2.5"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  >
+                                    <rect
+                                      x="3"
+                                      y="3"
+                                      width="18"
+                                      height="18"
+                                      rx="2"
+                                      ry="2"
+                                    />
+                                    <circle cx="8.5" cy="8.5" r="1.5" />
+                                    <polyline points="21 15 16 10 5 21" />
+                                  </svg>
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-xs font-bold text-zinc-200 truncate">
+                                    Pages Loaded Successfully
+                                  </p>
+                                  <p className="text-[10px] font-medium text-indigo-400/80">
+                                    {chapter.pages.length} images ready
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Sisi Kanan: Grup Tombol Aksi yang Efisien */}
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                {/* Tombol Manage / Edit (Membuka Popup Grid) */}
+                                <button
+                                  onClick={() =>
+                                    handleOpenPreview(chapter.id, chapter.pages)
+                                  }
+                                  className="rounded-xl bg-zinc-900 border border-zinc-800 px-3 py-2 text-xs font-semibold text-zinc-300 transition hover:border-indigo-500 hover:text-white"
+                                >
+                                  Manage
+                                </button>
+
+                                {/* Tombol Re-upload Cepat (Menimpa file tanpa harus buka modal) */}
+                                <label
+                                  htmlFor={uniqueInputId}
+                                  className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-400 transition hover:border-zinc-700 hover:text-zinc-200"
+                                  title="Replace all files"
+                                >
+                                  <svg
+                                    xmlns="http://w3.org"
+                                    width="14"
+                                    height="14"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2.5"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  >
+                                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                                  </svg>
+                                  <input
+                                    type="file"
+                                    id={uniqueInputId}
+                                    accept="image/*"
+                                    className="hidden"
+                                    multiple
+                                    onChange={(e) =>
+                                      handlePagesChange(e, chapter.id)
+                                    }
+                                    onClick={(e) => {
+                                      (e.target as HTMLInputElement).value = "";
+                                    }}
+                                  />
+                                </label>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
+                    )}
+                  </SortableChapter>
+                ))}
               </div>
-            ))}
-          </div>
+            </SortableContext>
+          </DndContext>
         </section>
       </main>
 
