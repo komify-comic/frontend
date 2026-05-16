@@ -11,7 +11,10 @@ import {
   Plus,
   FilePlus,
   Trash2,
+  RotateCw,
 } from "lucide-react";
+import Cropper from "react-easy-crop";
+import { getCroppedImg } from "./cropImage";
 
 type Chapter = {
   id: string;
@@ -22,11 +25,68 @@ type Chapter = {
 };
 
 export default function UploadPage() {
+  // COVER IMAGE STATE
+  const [coverImage, setCoverImage] = useState<string | null>(null);
+  const [originalSrc, setOriginalSrc] = useState<string | null>(null);
+  const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [rotation, setRotation] = useState(0);
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
+  const [savedCrop, setSavedCrop] = useState({ x: 0, y: 0 });
+  const [savedRotation, setSavedRotation] = useState(0);
+  const [savedZoom, setSavedZoom] = useState(1);
+  const handleCoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.addEventListener("load", () => {
+        const resultStr = reader.result as string;
+        setImageSrc(resultStr);
+        setOriginalSrc(resultStr);
+        setCrop({ x: 0, y: 0 });
+        setRotation(0);
+        setZoom(1);
+        setSavedCrop({ x: 0, y: 0 });
+        setSavedRotation(0);
+        setSavedZoom(1);
+      });
+      reader.readAsDataURL(file);
+    }
+  };
+  const handleEditExisting = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (originalSrc) {
+      setCrop(savedCrop);
+      setRotation(savedRotation);
+      setZoom(savedZoom);
+      setImageSrc(originalSrc);
+    }
+  };
+  const saveCroppedImage = async () => {
+    if (!imageSrc || !croppedAreaPixels) return;
+    try {
+      const cropped = await getCroppedImg(
+        imageSrc,
+        croppedAreaPixels,
+        rotation,
+      );
+      setCoverImage(cropped);
+      setSavedCrop(crop);
+      setSavedRotation(rotation);
+      setSavedZoom(zoom);
+      setImageSrc(null);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+  const onCropComplete = (croppedArea: any, croppedAreaPixels: any) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  };
+
   // CHAPTER STATE MANAGEMENT
   const [chapters, setChapters] = useState<Chapter[]>([
     { id: uuidv7(), main: 1, sub: 0, title: "", language: "en" },
-    { id: uuidv7(), main: 2, sub: 0, title: "", language: "en" },
-    { id: uuidv7(), main: 3, sub: 0, title: "", language: "en" },
   ]);
   const getSortedList = (list: Chapter[]) => {
     return [...list].sort((a, b) => {
@@ -141,17 +201,60 @@ export default function UploadPage() {
             Cover
           </h2>
 
-          <div className="group relative aspect-2/3 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/60">
-            <div className="flex h-full items-center justify-center text-sm text-zinc-500">
-              Upload Cover Image
-            </div>
+          {/* Input File Tersembunyi */}
+          <input
+            type="file"
+            id="cover-upload"
+            accept="image/*"
+            onChange={handleCoverChange}
+            className="hidden"
+            onClick={(e) => {
+              (e.target as HTMLInputElement).value = "";
+            }}
+          />
 
-            <div className="absolute inset-0 bg-linear-to-t from-black/40 to-transparent opacity-0 transition group-hover:opacity-100" />
+          {/* Kotak Preview / Tempat Upload */}
+          <div
+            onClick={(e) => {
+              if (coverImage) {
+                handleEditExisting(e);
+              } else {
+                document.getElementById("cover-upload")?.click();
+              }
+            }}
+            className="group relative block aspect-2/3 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/60 cursor-pointer transition hover:border-indigo-500/40"
+          >
+            {coverImage ? (
+              <img
+                src={coverImage}
+                alt="Comic Cover"
+                className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center text-sm text-zinc-500">
+                Cover Image
+              </div>
+            )}
+
+            {/* Overlay Efek Hover */}
+            <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition group-hover:opacity-100">
+              <span className="rounded-xl bg-zinc-900/80 px-4 py-2 text-xs font-semibold text-zinc-200 backdrop-blur-xs">
+                {coverImage ? "Edit / Re-crop Image" : "Choose File"}
+              </span>
+            </div>
           </div>
 
-          <button className="mt-4 w-full rounded-2xl bg-indigo-500/10 px-4 py-3 text-sm font-semibold text-indigo-300 transition hover:bg-indigo-500/20 hover:text-indigo-200">
-            Change Cover
-          </button>
+          {/* Tombol Kontrol Bawah */}
+          {coverImage && (
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => document.getElementById("cover-upload")?.click()}
+                className="flex-1 rounded-2xl border border-zinc-800 py-3 text-xs font-semibold text-zinc-400 transition hover:bg-zinc-800 hover:text-white"
+              >
+                Replace File
+              </button>
+            </div>
+          )}
         </section>
 
         {/* ================= MIDDLE: METADATA ================= */}
@@ -327,6 +430,83 @@ export default function UploadPage() {
           </div>
         </section>
       </main>
+
+      {/* ================= MODAL CROP & ROTATE ================= */}
+      {imageSrc && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-zinc-950/80 p-4 backdrop-blur-md">
+          <div className="flex h-200 w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-2xl">
+            {/* Header Modal */}
+            <div className="border-b border-zinc-800 p-4 text-center font-bold text-zinc-100">
+              Adjust Cover Image
+            </div>
+
+            {/* Area Kerja Cropper */}
+            <div className="relative flex-1 bg-zinc-950">
+              <Cropper
+                image={imageSrc}
+                crop={crop}
+                rotation={rotation}
+                zoom={zoom}
+                aspect={2 / 3} // Menyesuaikan dengan aspek cover asli Anda (aspect-2/3)
+                onCropChange={setCrop}
+                onRotationChange={setRotation}
+                onCropComplete={onCropComplete}
+                onZoomChange={setZoom}
+              />
+            </div>
+
+            {/* Panel Kontrol di Bawah Gambar */}
+            <div className="space-y-4 border-t border-zinc-800 p-5 bg-zinc-900/60">
+              {/* Kontrol Zoom */}
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-semibold text-zinc-400">
+                  Zoom
+                </span>
+                <input
+                  type="range"
+                  value={zoom}
+                  min={1}
+                  max={3}
+                  step={0.1}
+                  aria-label="Zoom"
+                  onChange={(e) => setZoom(Number(e.target.value))}
+                  className="h-1 w-full accent-indigo-500 bg-zinc-800 rounded-lg appearance-none cursor-pointer"
+                />
+              </div>
+
+              {/* Kontrol Rotasi */}
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-zinc-400">
+                  Rotation
+                </span>
+                <button
+                  onClick={() => setRotation((prev) => (prev + 90) % 360)}
+                  className="flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs text-zinc-300 transition hover:border-indigo-500 hover:text-white"
+                >
+                  <RotateCw className="h-3.5 w-3.5" />
+                  Rotate 90°
+                </button>
+              </div>
+
+              {/* Tombol Aksi Akhir */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => setImageSrc(null)}
+                  className="flex-1 rounded-2xl border border-zinc-800 py-3 text-sm font-semibold text-zinc-400 transition hover:bg-zinc-800 hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveCroppedImage}
+                  className="flex-1 rounded-2xl bg-indigo-500 py-3 text-sm font-semibold text-white transition hover:bg-indigo-400"
+                >
+                  Apply & Save
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
