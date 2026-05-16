@@ -1,3 +1,7 @@
+"use client";
+
+import { useState } from "react";
+import { v7 as uuidv7 } from "uuid";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -6,9 +10,82 @@ import {
   BookOpen,
   Plus,
   FilePlus,
+  Trash2,
 } from "lucide-react";
 
+type Chapter = {
+  id: string;
+  main: number;
+  sub: number;
+  title: string;
+  language: string;
+};
+
 export default function UploadPage() {
+  // CHAPTER STATE MANAGEMENT
+  const [chapters, setChapters] = useState<Chapter[]>([
+    { id: uuidv7(), main: 1, sub: 0, title: "", language: "en" },
+    { id: uuidv7(), main: 2, sub: 0, title: "", language: "en" },
+    { id: uuidv7(), main: 3, sub: 0, title: "", language: "en" },
+  ]);
+  const getSortedList = (list: Chapter[]) => {
+    return [...list].sort((a, b) => {
+      if (a.main !== b.main) return a.main - b.main;
+      return a.sub - b.sub;
+    });
+  };
+  const addChapter = () => {
+    setChapters((prev) => {
+      const sortedPrev = getSortedList(prev);
+      const lastMain =
+        sortedPrev.length > 0 ? sortedPrev[sortedPrev.length - 1].main : 0;
+
+      return [
+        ...prev,
+        {
+          id: uuidv7(),
+          main: lastMain + 1,
+          sub: 0,
+          title: "",
+          language: "en",
+        },
+      ];
+    });
+  };
+  const removeChapter = (id: string) => {
+    setChapters((prev) => {
+      const filtered = prev.filter((c) => c.id !== id);
+      const sorted = getSortedList(filtered);
+      return sorted.map((chapter, index) => ({
+        ...chapter,
+        main: index + 1,
+      }));
+    });
+  };
+
+  const updateChapter = (
+    id: string,
+    field: keyof Chapter,
+    value: string | number,
+  ) => {
+    setChapters((prev) =>
+      prev.map((c) =>
+        c.id === id
+          ? {
+              ...c,
+              [field]: value,
+            }
+          : c,
+      ),
+    );
+  };
+  const sortedChapters = [...chapters].sort((a, b) => {
+    if (a.main !== b.main) {
+      return a.main - b.main;
+    }
+    return a.sub - b.sub;
+  });
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
       {/* Top Bar (Back Only) */}
@@ -58,7 +135,7 @@ export default function UploadPage() {
       {/* Content */}
       <main className="mx-auto grid max-w-500 grid-cols-1 gap-6 px-6 pb-10 lg:grid-cols-[1fr_2fr_2fr]">
         {/* ================= LEFT: COVER ================= */}
-        <section className="rounded-3xl border border-zinc-800 bg-zinc-900/40 p-6">
+        <section className="rounded-3xl border border-zinc-800 bg-zinc-900/40 p-6 h-fit">
           <h2 className="mb-4 flex items-center gap-2 text-lg font-bold">
             <ImageIcon className="h-4 w-4 text-indigo-400" />
             Cover
@@ -78,7 +155,7 @@ export default function UploadPage() {
         </section>
 
         {/* ================= MIDDLE: METADATA ================= */}
-        <section className="rounded-3xl border border-zinc-800 bg-zinc-900/40 p-6">
+        <section className="rounded-3xl border border-zinc-800 bg-zinc-900/40 p-6 h-fit">
           <div className="mb-6 flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-lg font-bold">
               <BookOpen className="h-4 w-4 text-indigo-400" />
@@ -121,39 +198,130 @@ export default function UploadPage() {
         </section>
 
         {/* ================= RIGHT: CHAPTERS ================= */}
-        <section className="rounded-3xl border border-zinc-800 bg-zinc-900/40 p-6">
+        <section className="rounded-3xl border border-zinc-800 bg-zinc-900/40 p-6 h-fit">
+          {/* Header */}
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-lg font-bold">
+            {/* Left */}
+            <h2 className="flex items-center gap-2 text-lg font-bold text-white">
               <FilePlus className="h-4 w-4 text-indigo-400" />
               Chapters
             </h2>
 
-            <button className="text-xs text-zinc-400 hover:text-indigo-400">
-              Manage
+            {/* Right - Add Chapter */}
+            <button
+              onClick={addChapter}
+              className="flex items-center gap-2 rounded-2xl bg-indigo-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-400"
+            >
+              <Plus className="h-4 w-4" />
+              Add Chapter
             </button>
           </div>
 
-          <button className="mb-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-400">
-            <Plus className="h-4 w-4" />
-            Add Chapter
-          </button>
-
-          <div className="space-y-3">
-            {Array.from({ length: 5 }).map((_, i) => (
+          {/* Chapter Items */}
+          <div className="space-y-4">
+            {sortedChapters.map((chapter) => (
               <div
-                key={i}
-                className="group flex items-center justify-between rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-3 transition hover:border-indigo-500/40"
+                key={chapter.id}
+                className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 transition hover:border-indigo-500/40"
               >
-                <div>
-                  <p className="text-sm font-medium text-white group-hover:text-indigo-300">
-                    Chapter {i + 1}
-                  </p>
-                  <p className="text-xs text-zinc-500">0 pages</p>
+                {/* Header Row */}
+                <div className="mb-4 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-zinc-500">Chapter</span>
+
+                    {/* Chapter Number (1.2 style) */}
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        value={chapter.main}
+                        onChange={(e) =>
+                          updateChapter(
+                            chapter.id,
+                            "main",
+                            Number(e.target.value),
+                          )
+                        }
+                        className="w-14 rounded-xl border border-zinc-800 bg-zinc-900 px-2 py-2 text-center text-sm font-semibold text-indigo-300 outline-none focus:border-indigo-500"
+                      />
+
+                      <span className="text-zinc-500">.</span>
+
+                      <input
+                        type="number"
+                        value={chapter.sub}
+                        onChange={(e) =>
+                          updateChapter(
+                            chapter.id,
+                            "sub",
+                            Number(e.target.value),
+                          )
+                        }
+                        className="w-14 rounded-xl border border-zinc-800 bg-zinc-900 px-2 py-2 text-center text-sm font-semibold text-indigo-300 outline-none focus:border-indigo-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-3 text-xs">
+                    <button className="text-zinc-400 transition hover:text-indigo-400">
+                      Preview
+                    </button>
+
+                    <span className="text-zinc-700">•</span>
+
+                    <button
+                      onClick={() => removeChapter(chapter.id)}
+                      className="rounded-xl p-2 text-zinc-500 transition hover:bg-zinc-800 hover:text-red-400"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
 
-                <button className="text-xs text-indigo-400 opacity-0 transition group-hover:opacity-100">
-                  Edit
-                </button>
+                {/* Content Grid */}
+                <div className="grid gap-3 md:grid-cols-5">
+                  {/* Title */}
+                  <input
+                    type="text"
+                    placeholder="Chapter Title"
+                    value={chapter.title}
+                    onChange={(e) =>
+                      updateChapter(chapter.id, "title", e.target.value)
+                    }
+                    className="md:col-span-3 w-full rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 outline-none transition focus:border-indigo-500"
+                  />
+
+                  {/* Language */}
+                  <select
+                    value={chapter.language}
+                    onChange={(e) =>
+                      updateChapter(chapter.id, "language", e.target.value)
+                    }
+                    className="w-full rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 outline-none transition focus:border-indigo-500"
+                  >
+                    <option value="en">English</option>
+                    <option value="jp">Japanese</option>
+                    <option value="kr">Korean</option>
+                    <option value="id">Indonesian</option>
+                  </select>
+
+                  {/* Upload */}
+                  <label className="md:col-span-5 flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-zinc-700 bg-zinc-900 px-3 py-8 text-sm text-zinc-400 transition hover:border-indigo-500 hover:text-indigo-300">
+                    <span className="font-medium">Upload Pages</span>
+                    <span className="text-xs text-zinc-600">
+                      JPG / PNG / ZIP • Drag & Drop supported
+                    </span>
+
+                    <input type="file" className="hidden" multiple />
+                  </label>
+                </div>
+
+                {/* Footer Info */}
+                <div className="mt-3 flex items-center justify-between text-xs text-zinc-500">
+                  <span>0 files uploaded</span>
+
+                  <span className="text-zinc-600">auto saved draft</span>
+                </div>
               </div>
             ))}
           </div>
