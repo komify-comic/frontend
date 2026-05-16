@@ -13,7 +13,7 @@ jobs:
 
     steps:
       - name: Deploy Frontend via SSH
-        uses: actions/ssh-action@v0.1.6
+        uses: gitea/ssh-action@v0.1.6
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
