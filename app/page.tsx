@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Filter,
 } from "lucide-react";
+import Link from "next/link";
 
 export default function HomePage() {
   return (
@@ -208,12 +209,19 @@ export default function HomePage() {
               {Array.from({ length: 10 }).map((_, index) => {
                 const isCompleted = index % 2 === 0;
 
+                const title =
+                  "Very Long Comic Title That Will Automatically Clamp Into Two Lines Instead Of Breaking The Entire Layout";
+
                 return (
-                  <div key={index} className="group cursor-pointer">
+                  <Link
+                    key={index}
+                    href="/comic/solo-leveling-ragnarok"
+                    className="group block cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
                     {/* Cover */}
                     <div className="relative aspect-2/3 overflow-hidden rounded-2xl bg-zinc-900 transition duration-300 group-hover:scale-[1.02]">
                       {/* Top Badges */}
-                      <div className="absolute left-2 top-2 flex gap-2">
+                      <div className="absolute left-2 top-2 flex flex-wrap gap-2">
                         {/* NEW */}
                         <div className="rounded-lg bg-indigo-500 px-2 py-1 text-[10px] font-semibold text-white">
                           NEW
@@ -230,15 +238,17 @@ export default function HomePage() {
                       </div>
 
                       {/* Bottom Overlay */}
-                      <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-linear-to-t from-black/80 to-transparent p-3">
-                        <div>
-                          <p className="text-xs font-medium text-white">
-                            120 Chapters
-                          </p>
+                      <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/90 via-black/50 to-transparent p-3">
+                        <div className="flex items-end justify-between gap-3">
+                          <div>
+                            <p className="text-xs font-semibold text-white">
+                              120 Chapters
+                            </p>
 
-                          <p className="text-[10px] text-zinc-300">
-                            Updated 2h ago
-                          </p>
+                            <p className="mt-1 text-[10px] text-zinc-300">
+                              Updated 2h ago
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -246,19 +256,18 @@ export default function HomePage() {
                     {/* Info */}
                     <div className="mt-3">
                       <div className="relative">
-                        <h3 className="line-clamp-2 min-h-10 text-sm font-medium leading-5 text-zinc-100">
-                          Very Long Comic Title That Will Automatically Clamp
-                          Into Two Lines Instead Of Breaking The Entire Layout
+                        {/* Title */}
+                        <h3 className="line-clamp-2 min-h-10 text-sm font-medium leading-5 text-zinc-100 transition group-hover:text-white">
+                          {title}
                         </h3>
 
                         {/* Hover Tooltip */}
-                        <div className="pointer-events-none absolute left-0 top-full z-20 mt-2 w-max max-w-65 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs text-white opacity-0 shadow-2xl transition duration-200 group-hover:opacity-100">
-                          Very Long Comic Title That Will Automatically Clamp
-                          Into Two Lines Instead Of Breaking The Entire Layout
+                        <div className="pointer-events-none absolute left-0 top-full z-20 mt-2 w-max max-w-65 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs leading-5 text-white opacity-0 shadow-2xl transition duration-200 group-hover:opacity-100">
+                          {title}
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </Link>
                 );
               })}
             </div>
