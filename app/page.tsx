@@ -39,30 +39,30 @@ export default function HomePage() {
           </div>
 
           {/* Navigation */}
-          <nav className="hidden items-center gap-6 md:flex">
-            <a
-              href="#"
-              className="flex items-center gap-2 text-sm text-zinc-300 transition hover:text-white"
+          <nav className="hidden items-center gap-2 md:flex">
+            <Link
+              href="/bookmark"
+              className="group flex items-center gap-2 rounded-2xl px-4 py-2 text-sm text-zinc-400 transition hover:bg-zinc-900 hover:text-white"
             >
-              <Bookmark className="h-4 w-4" />
-              Bookmark
-            </a>
+              <Bookmark className="h-4 w-4 transition group-hover:scale-110" />
+              <span>Bookmark</span>
+            </Link>
 
-            <a
-              href="#"
-              className="flex items-center gap-2 text-sm text-zinc-300 transition hover:text-white"
+            <Link
+              href="/upload"
+              className="group flex items-center gap-2 rounded-2xl px-4 py-2 text-sm text-zinc-400 transition hover:bg-zinc-900 hover:text-white"
             >
-              <Upload className="h-4 w-4" />
-              Upload
-            </a>
+              <Upload className="h-4 w-4 transition group-hover:scale-110" />
+              <span>Upload</span>
+            </Link>
 
-            <a
-              href="#"
-              className="flex items-center gap-2 text-sm text-zinc-300 transition hover:text-white"
+            <Link
+              href="/settings"
+              className="group flex items-center gap-2 rounded-2xl px-4 py-2 text-sm text-zinc-400 transition hover:bg-indigo-500/10 hover:text-indigo-300"
             >
-              <Settings className="h-4 w-4" />
-              Setting
-            </a>
+              <Settings className="h-4 w-4 transition group-hover:scale-110" />
+              <span>Settings</span>
+            </Link>
           </nav>
         </div>
       </header>
@@ -274,24 +274,34 @@ export default function HomePage() {
 
             {/* Pagination */}
             <div className="mt-10 flex items-center justify-center gap-2">
-              <button className="flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-400 transition hover:bg-zinc-800 hover:text-white">
-                <ChevronLeft className="h-4 w-4" />
+              {/* Prev */}
+              <button className="rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm text-zinc-400 transition hover:border-indigo-500 hover:text-white disabled:opacity-40">
+                Prev
               </button>
 
-              <button className="h-10 min-w-10 rounded-xl bg-indigo-500 px-4 text-sm font-medium text-white">
+              {/* Pages */}
+              <button className="h-10 w-10 rounded-xl bg-indigo-500 text-sm font-semibold text-white">
                 1
               </button>
 
-              <button className="h-10 min-w-10 rounded-xl border border-zinc-800 bg-zinc-900 px-4 text-sm text-zinc-300 transition hover:bg-zinc-800">
+              <button className="h-10 w-10 rounded-xl border border-zinc-800 bg-zinc-900/60 text-sm text-zinc-400 transition hover:border-indigo-500 hover:text-white">
                 2
               </button>
 
-              <button className="h-10 min-w-10 rounded-xl border border-zinc-800 bg-zinc-900 px-4 text-sm text-zinc-300 transition hover:bg-zinc-800">
+              <button className="h-10 w-10 rounded-xl border border-zinc-800 bg-zinc-900/60 text-sm text-zinc-400 transition hover:border-indigo-500 hover:text-white">
                 3
               </button>
 
-              <button className="flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-400 transition hover:bg-zinc-800 hover:text-white">
-                <ChevronRight className="h-4 w-4" />
+              {/* Ellipsis */}
+              <span className="px-2 text-zinc-500">...</span>
+
+              <button className="h-10 w-10 rounded-xl border border-zinc-800 bg-zinc-900/60 text-sm text-zinc-400 transition hover:border-indigo-500 hover:text-white">
+                10
+              </button>
+
+              {/* Next */}
+              <button className="rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm text-zinc-400 transition hover:border-indigo-500 hover:text-white">
+                Next
               </button>
             </div>
           </div>

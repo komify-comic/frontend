@@ -1,0 +1,135 @@
+import Link from "next/link";
+import {
+  ArrowLeft,
+  Database,
+  Folder,
+  HardDrive,
+  ShieldAlert,
+  Trash2,
+} from "lucide-react";
+
+export default function SettingsPage() {
+  return (
+    <div className="min-h-screen bg-zinc-950 text-zinc-100">
+      {/* Header */}
+      <header className="sticky top-0 z-50 border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-xl">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
+          {/* Left */}
+          <div className="flex items-center gap-3">
+            <Link
+              href="/"
+              className="group flex h-11 w-11 items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-900/80 text-zinc-300 transition hover:border-indigo-500 hover:bg-indigo-500/10 hover:text-white"
+            >
+              <ArrowLeft className="h-4 w-4 transition group-hover:-translate-x-0.5" />
+            </Link>
+
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                Komify
+              </p>
+
+              <h1 className="text-sm font-semibold text-white">Settings</h1>
+            </div>
+          </div>
+
+          {/* Status */}
+          <div className="hidden items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 lg:flex">
+            <HardDrive className="h-4 w-4 text-indigo-400" />
+
+            <span className="text-sm text-zinc-300">Local Server Mode</span>
+          </div>
+        </div>
+      </header>
+
+      {/* Content */}
+      <main className="mx-auto max-w-5xl px-6 py-10">
+        {/* Sections */}
+        <div className="space-y-6">
+          {/* Database */}
+          <section className="rounded-3xl border border-zinc-800 bg-zinc-900/40 p-6 backdrop-blur-xl">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+              {/* Info */}
+              <div className="flex items-start gap-4">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-400">
+                  <Database className="h-6 w-6" />
+                </div>
+
+                <div>
+                  <h2 className="text-xl font-bold text-white">
+                    Reset Database
+                  </h2>
+
+                  <p className="mt-2 max-w-2xl text-sm leading-7 text-zinc-500">
+                    Delete all comic metadata, chapters, bookmarks, ratings, and
+                    application data stored in PostgreSQL.
+                  </p>
+
+                  {/* Warning */}
+                  <div className="mt-4 flex items-start gap-3 rounded-2xl border border-red-500/20 bg-red-500/10 p-4">
+                    <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-red-400" />
+
+                    <p className="text-sm leading-6 text-red-200">
+                      This action cannot be undone. All database records will be
+                      permanently removed.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action */}
+              <button className="group flex items-center justify-center gap-2 rounded-2xl border border-red-500/20 bg-red-500/10 px-6 py-4 text-sm font-semibold text-red-300 transition hover:border-red-500/40 hover:bg-red-500/20 hover:text-red-200">
+                <Trash2 className="h-4 w-4 transition group-hover:scale-110" />
+
+                <span>Reset Database</span>
+              </button>
+            </div>
+          </section>
+
+          {/* Storage */}
+          <section className="rounded-3xl border border-zinc-800 bg-zinc-900/40 p-6 backdrop-blur-xl">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+              {/* Info */}
+              <div className="flex items-start gap-4">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-400">
+                  <Folder className="h-6 w-6" />
+                </div>
+
+                <div>
+                  <h2 className="text-xl font-bold text-white">
+                    Clear Storage Folder
+                  </h2>
+
+                  <p className="mt-2 max-w-2xl text-sm leading-7 text-zinc-500">
+                    Delete all uploaded comic files and chapter images stored
+                    inside the{" "}
+                    <span className="font-semibold text-zinc-300">
+                      /storage
+                    </span>{" "}
+                    directory.
+                  </p>
+
+                  {/* Warning */}
+                  <div className="mt-4 flex items-start gap-3 rounded-2xl border border-red-500/20 bg-red-500/10 p-4">
+                    <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-red-400" />
+
+                    <p className="text-sm leading-6 text-red-200">
+                      All uploaded images and comic assets will be permanently
+                      deleted from disk.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action */}
+              <button className="group flex items-center justify-center gap-2 rounded-2xl border border-red-500/20 bg-red-500/10 px-6 py-4 text-sm font-semibold text-red-300 transition hover:border-red-500/40 hover:bg-red-500/20 hover:text-red-200">
+                <Trash2 className="h-4 w-4 transition group-hover:scale-110" />
+
+                <span>Clear Storage</span>
+              </button>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+  );
+}
