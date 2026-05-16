@@ -12,19 +12,22 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Deploy Frontend
-        run: |
-          set -e
-
-          echo "=== FRONTEND DEPLOY START ==="
-
-          cd /srv/dev/frontend
-
-          git fetch origin
-          git reset --hard origin/dev
-
-          cd /srv/dev/compose
-
-          docker compose up -d --build frontend
-
-          echo "=== FRONTEND DEPLOY DONE ==="
+      - name: Deploy Frontend via SSH
+        uses: https://gitea.com
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          port: 22
+          script: |
+            set -e
+            echo "=== FRONTEND DEPLOY START ==="
+            
+            cd /srv/dev/frontend
+            git fetch origin
+            git reset --hard origin/dev
+            
+            cd /srv/dev/compose
+            docker compose up -d --build frontend
+            
+            echo "=== FRONTEND DEPLOY DONE ==="
