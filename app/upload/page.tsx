@@ -14,6 +14,7 @@ import {
   RotateCw,
 } from "lucide-react";
 import Cropper from "react-easy-crop";
+import { useId } from "react";
 import { getCroppedImg } from "./cropImage";
 
 type Chapter = {
@@ -22,9 +23,79 @@ type Chapter = {
   sub: number;
   title: string;
   language: string;
+  pages: string[];
 };
 
 export default function UploadPage() {
+  const uniqueInputId = useId();
+
+  // PAGES STATE MANAGEMENT
+  const [activeUploadChapterId, setActiveUploadChapterId] = useState<
+    string | null
+  >(null);
+  const [tempPages, setTempPages] = useState<{ name: string; url: string }[]>(
+    [],
+  );
+  const handlePagesChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    chapterId: string,
+  ) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const filesArray = Array.from(files);
+      const mappedFiles = filesArray.map((file) => ({
+        name: file.name,
+        url: URL.createObjectURL(file),
+      }));
+      setTempPages(mappedFiles);
+      setActiveUploadChapterId(chapterId);
+    }
+  };
+  const handleOpenPreview = (chapterId: string, savedPages: string[]) => {
+    const mappedPages = savedPages.map((url, idx) => ({
+      name: `Page_${idx + 1}.jpg`,
+      url: url,
+    }));
+    setTempPages(mappedPages);
+    setActiveUploadChapterId(chapterId);
+  };
+  const saveUploadedPages = () => {
+    if (!activeUploadChapterId) return;
+    setChapters((prev) =>
+      prev.map((c) =>
+        c.id === activeUploadChapterId
+          ? { ...c, pages: tempPages.map((p) => p.url) }
+          : c,
+      ),
+    );
+    setActiveUploadChapterId(null);
+    setTempPages([]);
+  };
+  const cancelUploadedPages = () => {
+    tempPages.forEach((p) => URL.revokeObjectURL(p.url));
+    setActiveUploadChapterId(null);
+    setTempPages([]);
+  };
+  const handleAppendPages = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const filesArray = Array.from(files);
+
+      const mappedNewFiles = filesArray.map((file) => ({
+        name: file.name,
+        url: URL.createObjectURL(file),
+      }));
+      setTempPages((prev) => [...prev, ...mappedNewFiles]);
+    }
+  };
+  const removeSingleTempPage = (indexToRemove: number) => {
+    setTempPages((prev) => {
+      const target = prev[indexToRemove];
+      if (target) URL.revokeObjectURL(target.url);
+      return prev.filter((_, idx) => idx !== indexToRemove);
+    });
+  };
+
   // COVER IMAGE STATE
   const [coverImage, setCoverImage] = useState<string | null>(null);
   const [originalSrc, setOriginalSrc] = useState<string | null>(null);
@@ -86,7 +157,7 @@ export default function UploadPage() {
 
   // CHAPTER STATE MANAGEMENT
   const [chapters, setChapters] = useState<Chapter[]>([
-    { id: uuidv7(), main: 1, sub: 0, title: "", language: "en" },
+    { id: uuidv7(), main: 1, sub: 0, title: "", language: "en", pages: [] },
   ]);
   const getSortedList = (list: Chapter[]) => {
     return [...list].sort((a, b) => {
@@ -108,6 +179,7 @@ export default function UploadPage() {
           sub: 0,
           title: "",
           language: "en",
+          pages: [],
         },
       ];
     });
@@ -382,7 +454,7 @@ export default function UploadPage() {
                 </div>
 
                 {/* Content Grid */}
-                <div className="grid gap-3 md:grid-cols-5">
+                <div className="grid gap-3 md:grid-cols-4">
                   {/* Title */}
                   <input
                     type="text"
@@ -400,7 +472,7 @@ export default function UploadPage() {
                     onChange={(e) =>
                       updateChapter(chapter.id, "language", e.target.value)
                     }
-                    className="w-full rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 outline-none transition focus:border-indigo-500"
+                    className="md:col-span-1 w-full rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 outline-none transition focus:border-indigo-500"
                   >
                     <option value="en">English</option>
                     <option value="jp">Japanese</option>
@@ -409,27 +481,275 @@ export default function UploadPage() {
                   </select>
 
                   {/* Upload */}
-                  <label className="md:col-span-5 flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-zinc-700 bg-zinc-900 px-3 py-8 text-sm text-zinc-400 transition hover:border-indigo-500 hover:text-indigo-300">
-                    <span className="font-medium">Upload Pages</span>
-                    <span className="text-xs text-zinc-600">
-                      JPG / PNG / ZIP • Drag & Drop supported
-                    </span>
+                  {chapter.pages.length === 0 ? (
+                    // 1. TAMPILAN JIKA BELUM ADA GAMBAR (Tombol Upload Sederhana & Bersih)
+                    <label
+                      htmlFor={uniqueInputId}
+                      className="md:col-span-5 flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/20 px-4 py-7 text-zinc-400 transition duration-200 hover:border-indigo-500/50 hover:bg-zinc-900/50 hover:text-indigo-300"
+                    >
+                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 shadow-xs">
+                        <svg
+                          xmlns="http://w3.org"
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="17 8 12 3 7 8" />
+                          <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                      </div>
+                      <div className="text-center">
+                        <span className="text-xs font-semibold block text-zinc-300">
+                          Upload Chapter Pages
+                        </span>
+                        <span className="text-[10px] text-zinc-600">
+                          JPG, PNG or ZIP • Drag & drop
+                        </span>
+                      </div>
 
-                    <input type="file" className="hidden" multiple />
-                  </label>
-                </div>
+                      <input
+                        type="file"
+                        id={uniqueInputId}
+                        accept="image/*"
+                        className="hidden"
+                        multiple
+                        onChange={(e) => handlePagesChange(e, chapter.id)}
+                        onClick={(e) => {
+                          (e.target as HTMLInputElement).value = "";
+                        }}
+                      />
+                    </label>
+                  ) : (
+                    // 2. TAMPILAN MODERN JIKA SUDAH ADA GAMBAR (Sleek Horizontal Badge)
+                    <div className="md:col-span-5 flex items-center justify-between gap-3 rounded-2xl border border-indigo-500/20 bg-indigo-500/5 p-3 shadow-xs shadow-indigo-500/2">
+                      {/* Sisi Kiri: Status & Jumlah File */}
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                          <svg
+                            xmlns="http://w3.org"
+                            width="15"
+                            height="15"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <rect
+                              x="3"
+                              y="3"
+                              width="18"
+                              height="18"
+                              rx="2"
+                              ry="2"
+                            />
+                            <circle cx="8.5" cy="8.5" r="1.5" />
+                            <polyline points="21 15 16 10 5 21" />
+                          </svg>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-zinc-200 truncate">
+                            Pages Loaded Successfully
+                          </p>
+                          <p className="text-[10px] font-medium text-indigo-400/80">
+                            {chapter.pages.length} images ready
+                          </p>
+                        </div>
+                      </div>
 
-                {/* Footer Info */}
-                <div className="mt-3 flex items-center justify-between text-xs text-zinc-500">
-                  <span>0 files uploaded</span>
+                      {/* Sisi Kanan: Grup Tombol Aksi yang Efisien */}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {/* Tombol Manage / Edit (Membuka Popup Grid) */}
+                        <button
+                          onClick={() =>
+                            handleOpenPreview(chapter.id, chapter.pages)
+                          }
+                          className="rounded-xl bg-zinc-900 border border-zinc-800 px-3 py-2 text-xs font-semibold text-zinc-300 transition hover:border-indigo-500 hover:text-white"
+                        >
+                          Manage
+                        </button>
 
-                  <span className="text-zinc-600">auto saved draft</span>
+                        {/* Tombol Re-upload Cepat (Menimpa file tanpa harus buka modal) */}
+                        <label
+                          htmlFor={uniqueInputId}
+                          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-400 transition hover:border-zinc-700 hover:text-zinc-200"
+                          title="Replace all files"
+                        >
+                          <svg
+                            xmlns="http://w3.org"
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                          </svg>
+                          <input
+                            type="file"
+                            id={uniqueInputId}
+                            accept="image/*"
+                            className="hidden"
+                            multiple
+                            onChange={(e) => handlePagesChange(e, chapter.id)}
+                            onClick={(e) => {
+                              (e.target as HTMLInputElement).value = "";
+                            }}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
           </div>
         </section>
       </main>
+
+      {/* ================= MODAL LIST PAGES UPLOAD ================= */}
+      {activeUploadChapterId && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-zinc-950/80 backdrop-blur-md">
+          <div className="flex min-h-screen items-center justify-center p-4">
+            <div className="flex max-h-[90%] w-full max-w-[95%] flex-col rounded-3xl border border-zinc-800 bg-zinc-900 shadow-2xl">
+              {/* ================= HEADER ================= */}
+              <div className="sticky top-0 z-20 flex items-center justify-between border-b border-zinc-800 bg-zinc-900 px-5 py-4">
+                {/* Left */}
+                <div className="w-24">
+                  {tempPages.length > 0 && (
+                    <button
+                      onClick={() => {
+                        tempPages.forEach((p) => URL.revokeObjectURL(p.url));
+                        setTempPages([]);
+                      }}
+                      className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-400 transition hover:bg-red-500/20"
+                    >
+                      Clear All
+                    </button>
+                  )}
+                </div>
+
+                {/* Center */}
+                <div className="flex-1 text-center">
+                  <h2 className="text-sm font-bold text-zinc-100">
+                    Confirm Upload
+                  </h2>
+
+                  <p className="mt-1 text-xs text-zinc-500">
+                    {tempPages.length} selected pages
+                  </p>
+                </div>
+
+                {/* Right */}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={cancelUploadedPages}
+                    className="rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs font-semibold text-zinc-400 transition hover:border-zinc-700 hover:bg-zinc-800 hover:text-white"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    onClick={saveUploadedPages}
+                    className="rounded-xl bg-indigo-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-indigo-400 shadow-md"
+                  >
+                    Save Pages
+                  </button>
+                </div>
+              </div>
+
+              {/* ================= BODY ================= */}
+              <div className="max-h-[calc(100vh-180px)] overflow-y-auto p-4 mb-5">
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                  {tempPages.map((file, idx) => (
+                    <div
+                      key={idx}
+                      className="group relative aspect-3/4 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/60 transition hover:border-indigo-500/40"
+                    >
+                      {/* Page Badge */}
+                      <span className="absolute left-2 top-2 z-10 rounded-lg bg-zinc-950/90 px-2 py-1 text-[10px] font-bold text-indigo-400 backdrop-blur">
+                        Page {idx + 1}
+                      </span>
+
+                      {/* Remove */}
+                      <button
+                        onClick={() => removeSingleTempPage(idx)}
+                        className="absolute right-2 top-2 z-10 rounded-lg bg-red-500/90 p-1.5 text-white opacity-0 shadow-lg backdrop-blur transition hover:bg-red-600 group-hover:opacity-100"
+                        title="Remove page"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M3 6h18" />
+                          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                        </svg>
+                      </button>
+
+                      {/* Image */}
+                      <img
+                        src={file.url}
+                        alt={file.name}
+                        className="h-full w-full object-cover object-top transition duration-300 group-hover:scale-[1.02]"
+                      />
+
+                      {/* Hover Overlay */}
+                      <div className="pointer-events-none absolute inset-0 bg-black/10 opacity-0 transition group-hover:opacity-100" />
+                    </div>
+                  ))}
+
+                  {/* Add More */}
+                  <label
+                    htmlFor={uniqueInputId}
+                    className="group flex aspect-3/4 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/20 text-zinc-500 transition hover:border-indigo-500 hover:bg-zinc-900/40 hover:text-indigo-400"
+                  >
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900 transition group-hover:border-indigo-500/50 group-hover:bg-indigo-500/10">
+                      <span className="text-xl font-light">+</span>
+                    </div>
+
+                    <div className="text-center">
+                      <p className="text-xs font-semibold">Add Pages</p>
+                      <p className="mt-1 text-[10px] text-zinc-600">
+                        JPG / PNG / ZIP
+                      </p>
+                    </div>
+
+                    <input
+                      type="file"
+                      id={uniqueInputId}
+                      accept="image/*"
+                      className="hidden"
+                      multiple
+                      onChange={handleAppendPages}
+                      onClick={(e) => {
+                        (e.target as HTMLInputElement).value = "";
+                      }}
+                    />
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ================= MODAL CROP & ROTATE ================= */}
       {imageSrc && (
