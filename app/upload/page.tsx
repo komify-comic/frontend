@@ -12,6 +12,7 @@ import {
   FilePlus,
   Trash2,
   RotateCw,
+  Sparkles,
 } from "lucide-react";
 import Cropper from "react-easy-crop";
 import {
@@ -496,6 +497,13 @@ export default function UploadPage() {
               <BookOpen className="h-4 w-4 text-indigo-400" />
               Metadata
             </h2>
+            <button
+              // onClick={() => setIsExtractModalOpen(true)}
+              className="flex items-center gap-2 rounded-2xl border border-indigo-500/20 bg-indigo-500/10 px-4 py-2 text-xs font-semibold text-indigo-300 transition hover:bg-indigo-500/20 hover:text-white"
+            >
+              <Sparkles className="h-4 w-4" />
+              Extract
+            </button>
           </div>
 
           <div className="space-y-5">
