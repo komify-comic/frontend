@@ -404,12 +404,25 @@ export default function UploadPage() {
       <main className="mx-auto grid max-w-500 grid-cols-1 gap-6 px-6 pb-10 lg:grid-cols-[1fr_2fr_2fr]">
         {/* ================= LEFT: COVER ================= */}
         <section className="rounded-3xl border border-zinc-800 bg-zinc-900/40 p-6 h-fit">
-          <h2 className="mb-4 flex items-center gap-2 text-lg font-bold">
-            <ImageIcon className="h-4 w-4 text-indigo-400" />
-            Cover
-          </h2>
+          {/* Header */}
+          <div className="mb-5 flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-lg font-bold">
+              <ImageIcon className="h-4 w-4 text-indigo-400" />
+              Cover
+            </h2>
 
-          {/* Input File Tersembunyi */}
+            {/* Status */}
+            <select
+              className="rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-2 text-xs font-semibold text-zinc-300 outline-none transition focus:border-indigo-500"
+              defaultValue="ongoing"
+            >
+              <option value="ongoing">Ongoing</option>
+              <option value="completed">Not Completed</option>
+              <option value="hiatus">Completed</option>
+            </select>
+          </div>
+
+          {/* Input File */}
           <input
             type="file"
             id="cover-upload"
@@ -421,7 +434,7 @@ export default function UploadPage() {
             }}
           />
 
-          {/* Kotak Preview / Tempat Upload */}
+          {/* Preview Box */}
           <div
             onClick={(e) => {
               if (coverImage) {
@@ -430,36 +443,47 @@ export default function UploadPage() {
                 document.getElementById("cover-upload")?.click();
               }
             }}
-            className="group relative block aspect-2/3 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/60 cursor-pointer transition hover:border-indigo-500/40"
+            className="group relative block aspect-2/3 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900/60 cursor-pointer transition hover:border-indigo-500/40"
           >
             {coverImage ? (
-              <img
-                src={coverImage}
-                alt="Comic Cover"
-                className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-              />
+              <>
+                <img
+                  src={coverImage}
+                  alt="Comic Cover"
+                  className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                />
+              </>
             ) : (
-              <div className="flex h-full items-center justify-center text-sm text-zinc-500">
-                Cover Image
+              <div className="flex h-full flex-col items-center justify-center gap-4 text-zinc-500">
+                <div className="text-center">
+                  <p className="mt-1 text-xs text-zinc-600">Cover</p>
+                </div>
               </div>
             )}
 
-            {/* Overlay Efek Hover */}
+            {/* Hover Overlay */}
             <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition group-hover:opacity-100">
-              <span className="rounded-xl bg-zinc-900/80 px-4 py-2 text-xs font-semibold text-zinc-200 backdrop-blur-xs">
+              <span className="rounded-2xl border border-white/10 bg-zinc-900/80 px-4 py-2 text-xs font-semibold text-zinc-200 backdrop-blur-md">
                 {coverImage ? "Edit / Re-crop Image" : "Choose File"}
               </span>
             </div>
           </div>
 
-          {/* Tombol Kontrol Bawah */}
+          {/* Footer Actions */}
           {coverImage && (
-            <div className="mt-4 flex gap-2">
+            <div className="mt-4 grid grid-cols-2 gap-3">
               <button
                 onClick={() => document.getElementById("cover-upload")?.click()}
-                className="flex-1 rounded-2xl border border-zinc-800 py-3 text-xs font-semibold text-zinc-400 transition hover:bg-zinc-800 hover:text-white"
+                className="rounded-2xl border border-zinc-800 py-3 text-xs font-semibold text-zinc-400 transition hover:bg-zinc-800 hover:text-white"
               >
                 Replace File
+              </button>
+
+              <button
+                onClick={() => setCoverImage(null)}
+                className="rounded-2xl border border-red-500/20 bg-red-500/10 py-3 text-xs font-semibold text-red-400 transition hover:bg-red-500/20"
+              >
+                Remove Cover
               </button>
             </div>
           )}
