@@ -43,141 +43,63 @@ type Chapter = {
   pages: string[];
 };
 
-// COMPONENT SORTABLE CHAPTER ITEM
-function SortableChapter({
-  chapter,
-  children,
-}: {
-  chapter: Chapter;
-  children: (props: any) => React.ReactNode;
-}) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({
-    id: chapter.id,
-  });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={isDragging ? "opacity-50" : ""}
-    >
-      {children({
-        dragHandleProps: {
-          ...attributes,
-          ...listeners,
-        },
-      })}
-    </div>
-  );
-}
-
-// COMPONENT SORTABLE PAGE CARD
-type TempPage = {
-  id: string;
-  url: string;
-  name: string;
-};
-function SortablePageCard({
-  file,
-  idx,
-  onRemove,
-}: {
-  file: TempPage;
-  idx: number;
-  onRemove: () => void;
-}) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({
-    id: file.id,
-  });
-
-  const style = {
-    transform: transform
-      ? `translate3d(${transform.x}px, ${transform.y}px, 0) scale(${isDragging ? 1.03 : 1})`
-      : undefined,
-    transition: transition || undefined,
-    willChange: "transform",
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={`group relative aspect-3/4 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/60 transition ${
-        isDragging
-          ? "z-50 scale-[1.03] border-indigo-500 shadow-2xl shadow-indigo-500/20"
-          : "hover:border-indigo-500/40"
-      }`}
-    >
-      {/* Drag Handle */}
-      <button
-        {...attributes}
-        {...listeners}
-        className="absolute left-2 bottom-2 z-10 flex h-8 w-8 cursor-grab items-center justify-center rounded-lg bg-zinc-950/80 text-zinc-400 backdrop-blur transition hover:text-white active:cursor-grabbing"
-      >
-        ☰
-      </button>
-
-      {/* Page Badge */}
-      <span className="absolute left-2 top-2 z-10 rounded-lg bg-zinc-950/90 px-2 py-1 text-[10px] font-bold text-indigo-400 backdrop-blur">
-        Page {idx + 1}
-      </span>
-
-      {/* Remove */}
-      <button
-        onClick={onRemove}
-        className="absolute right-2 top-2 z-10 rounded-lg bg-red-500/90 p-1.5 text-white opacity-0 shadow-lg backdrop-blur transition hover:bg-red-600 group-hover:opacity-100"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M3 6h18" />
-          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-        </svg>
-      </button>
-
-      {/* Image */}
-      <img
-        src={file.url}
-        alt={file.name}
-        className="h-full w-full object-cover object-top transition duration-300 group-hover:scale-[1.02]"
-      />
-
-      {/* Overlay */}
-      <div className="pointer-events-none absolute inset-0 bg-black/10 opacity-0 transition group-hover:opacity-100" />
-    </div>
-  );
-}
-
 export default function UploadPage() {
   const [activeTemplate, setActiveTemplate] = useState<string>("doujinshi");
+
+  // FIX PARAGRAPH MODAL STATE
+  const [fixModal, setFixModal] = useState<{
+    open: boolean;
+    field: string;
+    value: string;
+    preview: string;
+  }>({
+    open: false,
+    field: "",
+    value: "",
+    preview: "",
+  });
+  const [metadata, setMetadata] = useState({
+    title: "",
+    parodies: "",
+    characters: "",
+    artists: "",
+    authors: "",
+    groups: "",
+    tags: "",
+  });
+  const fixParagraph = useCallback((text: any) => {
+    if (!text) return "";
+    let result = Array.isArray(text) ? text.join(", ") : String(text);
+    result = result.replace(/[|♀♂•−]/g, ",");
+    result = result.replace(/\s+\d+(\.\d+)?[km]?/gi, ",");
+    const parts = result
+      .split(",")
+      .map((p) => p.trim())
+      .filter(Boolean);
+    const unique = [...new Set(parts)];
+    return unique.join(", ");
+  }, []);
+  const openFixModal = (field: string, value: string) => {
+    setFixModal({
+      open: true,
+      field,
+      value,
+      preview: fixParagraph(value),
+    });
+  };
+  const saveFixMetadata = () => {
+    setMetadata((prev) => ({
+      ...prev,
+      [fixModal.field.toLowerCase()]: fixModal.preview,
+    }));
+
+    setFixModal({
+      open: false,
+      field: "",
+      value: "",
+      preview: "",
+    });
+  };
 
   // COVER IMAGE STATE
   const [coverImage, setCoverImage] = useState<string | null>(null);
@@ -554,16 +476,37 @@ export default function UploadPage() {
 
           <div className="space-y-5">
             {[
-              { label: "Title", placeholder: "Comic Title" },
-              { label: "Parodies", placeholder: "Solo Leveling, Naruto" },
+              { key: "title", label: "Title", placeholder: "Comic Title" },
               {
+                key: "parodies",
+                label: "Parodies",
+                placeholder: "Solo Leveling, Naruto",
+              },
+              {
+                key: "characters",
                 label: "Characters",
                 placeholder: "Sung Jin-Woo, Naruto Uzumaki",
               },
-              { label: "Artists", placeholder: "Redice Studio" },
-              { label: "Authors", placeholder: "Chugong" },
-              { label: "Groups", placeholder: "Scanlation Team" },
-              { label: "Tags", placeholder: "Action, Fantasy, Adventure" },
+              {
+                key: "artists",
+                label: "Artists",
+                placeholder: "Redice Studio",
+              },
+              {
+                key: "authors",
+                label: "Authors",
+                placeholder: "Chugong",
+              },
+              {
+                key: "groups",
+                label: "Groups",
+                placeholder: "Scanlation Team",
+              },
+              {
+                key: "tags",
+                label: "Tags",
+                placeholder: "Action, Fantasy, Adventure",
+              },
             ]
               .filter((field) => {
                 if (activeTemplate === "manhwa" && field.label === "Groups") {
@@ -586,11 +529,36 @@ export default function UploadPage() {
                     {field.label}
                   </label>
 
-                  <input
-                    type="text"
-                    placeholder={field.placeholder}
-                    className="w-full rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-zinc-200 outline-none transition focus:border-indigo-500"
-                  />
+                  <div className="flex gap-2">
+                    {/* Input */}
+                    <input
+                      type="text"
+                      value={metadata[field.key as keyof typeof metadata]}
+                      onChange={(e) =>
+                        setMetadata((prev) => ({
+                          ...prev,
+                          [field.key]: e.target.value,
+                        }))
+                      }
+                      placeholder={field.placeholder}
+                      className="flex-1 rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-zinc-200 outline-none transition focus:border-indigo-500"
+                    />
+
+                    {/* Fix Button */}
+                    {field.key !== "title" && (
+                      <button
+                        onClick={() =>
+                          openFixModal(
+                            field.label,
+                            metadata[field.key as keyof typeof metadata],
+                          )
+                        }
+                        className="shrink-0 rounded-2xl border border-indigo-500/20 bg-indigo-500/10 px-4 py-3 text-xs font-semibold uppercase tracking-[0.15em] text-indigo-300 transition hover:border-indigo-500/40 hover:bg-indigo-500/20 hover:text-white"
+                      >
+                        Fix
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
           </div>
@@ -886,6 +854,82 @@ export default function UploadPage() {
         </section>
       </main>
 
+      {/* ================= FIX METADATA MODAL ================= */}
+      {fixModal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-md">
+          <div className="w-full max-w-2xl rounded-3xl border border-zinc-800 bg-zinc-900 shadow-2xl">
+            {/* Header */}
+            <div className="border-b border-zinc-800 px-6 py-5">
+              <h2 className="text-lg font-bold text-white">
+                Fix {fixModal.field}
+              </h2>
+
+              <p className="mt-1 text-sm text-zinc-500">
+                Clean and normalize metadata automatically
+              </p>
+            </div>
+
+            {/* Content */}
+            <div className="space-y-5 p-6">
+              {/* Raw Input */}
+              <div>
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                  Raw Input
+                </label>
+
+                <textarea
+                  value={fixModal.value}
+                  onChange={(e) =>
+                    setFixModal((prev) => ({
+                      ...prev,
+                      value: e.target.value,
+                      preview: fixParagraph(e.target.value),
+                    }))
+                  }
+                  rows={6}
+                  className="w-full rounded-2xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-zinc-200 outline-none transition focus:border-indigo-500"
+                />
+              </div>
+
+              {/* Preview */}
+              <div>
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                  Preview Result
+                </label>
+
+                <div className="min-h-30 rounded-2xl border border-indigo-500/20 bg-indigo-500/5 px-4 py-3 text-sm leading-relaxed text-indigo-200">
+                  {fixModal.preview || "No preview generated"}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex gap-3 border-t border-zinc-800 p-5">
+              <button
+                onClick={() =>
+                  setFixModal({
+                    open: false,
+                    field: "",
+                    value: "",
+                    preview: "",
+                  })
+                }
+                className="flex-1 rounded-2xl border border-zinc-800 py-3 text-sm font-semibold text-zinc-400 transition hover:bg-zinc-800 hover:text-white"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={saveFixMetadata}
+                className="flex-1 rounded-2xl bg-indigo-500 py-3 text-sm font-semibold text-white transition hover:bg-indigo-400"
+              >
+                Save Metadata
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ================= MODAL LIST PAGES UPLOAD ================= */}
       {activeUploadChapterId && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-zinc-950/80 backdrop-blur-md">
@@ -1069,6 +1113,139 @@ export default function UploadPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// COMPONENT SORTABLE CHAPTER ITEM
+function SortableChapter({
+  chapter,
+  children,
+}: {
+  chapter: Chapter;
+  children: (props: any) => React.ReactNode;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: chapter.id,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={isDragging ? "opacity-50" : ""}
+    >
+      {children({
+        dragHandleProps: {
+          ...attributes,
+          ...listeners,
+        },
+      })}
+    </div>
+  );
+}
+
+// COMPONENT SORTABLE PAGE CARD
+type TempPage = {
+  id: string;
+  url: string;
+  name: string;
+};
+function SortablePageCard({
+  file,
+  idx,
+  onRemove,
+}: {
+  file: TempPage;
+  idx: number;
+  onRemove: () => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: file.id,
+  });
+
+  const style = {
+    transform: transform
+      ? `translate3d(${transform.x}px, ${transform.y}px, 0) scale(${isDragging ? 1.03 : 1})`
+      : undefined,
+    transition: transition || undefined,
+    willChange: "transform",
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`group relative aspect-3/4 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/60 transition ${
+        isDragging
+          ? "z-50 scale-[1.03] border-indigo-500 shadow-2xl shadow-indigo-500/20"
+          : "hover:border-indigo-500/40"
+      }`}
+    >
+      {/* Drag Handle */}
+      <button
+        {...attributes}
+        {...listeners}
+        className="absolute left-2 bottom-2 z-10 flex h-8 w-8 cursor-grab items-center justify-center rounded-lg bg-zinc-950/80 text-zinc-400 backdrop-blur transition hover:text-white active:cursor-grabbing"
+      >
+        ☰
+      </button>
+
+      {/* Page Badge */}
+      <span className="absolute left-2 top-2 z-10 rounded-lg bg-zinc-950/90 px-2 py-1 text-[10px] font-bold text-indigo-400 backdrop-blur">
+        Page {idx + 1}
+      </span>
+
+      {/* Remove */}
+      <button
+        onClick={onRemove}
+        className="absolute right-2 top-2 z-10 rounded-lg bg-red-500/90 p-1.5 text-white opacity-0 shadow-lg backdrop-blur transition hover:bg-red-600 group-hover:opacity-100"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M3 6h18" />
+          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+        </svg>
+      </button>
+
+      {/* Image */}
+      <img
+        src={file.url}
+        alt={file.name}
+        className="h-full w-full object-cover object-top transition duration-300 group-hover:scale-[1.02]"
+      />
+
+      {/* Overlay */}
+      <div className="pointer-events-none absolute inset-0 bg-black/10 opacity-0 transition group-hover:opacity-100" />
     </div>
   );
 }
