@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { v7 as uuidv7 } from "uuid";
 import Link from "next/link";
 import {
@@ -14,19 +14,22 @@ import {
   RotateCw,
 } from "lucide-react";
 import Cropper from "react-easy-crop";
-import { useId } from "react";
 import {
   DndContext,
   closestCenter,
   PointerSensor,
   useSensor,
   useSensors,
+  DragEndEvent,
+  KeyboardSensor,
 } from "@dnd-kit/core";
 import {
   SortableContext,
   verticalListSortingStrategy,
   useSortable,
   arrayMove,
+  rectSortingStrategy,
+  sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { getCroppedImg } from "./cropImage";
@@ -80,101 +83,101 @@ function SortableChapter({
   );
 }
 
-export default function UploadPage() {
-  const uniqueInputId = useId();
-  const [activeTemplate, setActiveTemplate] = useState<string>("doujinshi");
-
-  // DRAG & DROP SETUP
-  const pointerSensor = useSensor(PointerSensor, {
-    activationConstraint: {
-      distance: 8,
-    },
+// COMPONENT SORTABLE PAGE CARD
+type TempPage = {
+  id: string;
+  url: string;
+  name: string;
+};
+function SortablePageCard({
+  file,
+  idx,
+  onRemove,
+}: {
+  file: TempPage;
+  idx: number;
+  onRemove: () => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: file.id,
   });
-  const sensors = useSensors(pointerSensor);
-  const [isMounted, setIsMounted] = useState(false);
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-  const handleDragEnd = (event: any) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    setChapters((items) => {
-      const oldIndex = items.findIndex((i) => i.id === active.id);
-      const newIndex = items.findIndex((i) => i.id === over.id);
-      const reordered = arrayMove(items, oldIndex, newIndex);
-      return reordered.map((chapter, index) => ({
-        ...chapter,
-        main: index + 1,
-      }));
-    });
+
+  const style = {
+    transform: transform
+      ? `translate3d(${transform.x}px, ${transform.y}px, 0) scale(${isDragging ? 1.03 : 1})`
+      : undefined,
+    transition: transition || undefined,
+    willChange: "transform",
   };
 
-  // PAGES STATE MANAGEMENT
-  const [activeUploadChapterId, setActiveUploadChapterId] = useState<
-    string | null
-  >(null);
-  const [tempPages, setTempPages] = useState<{ name: string; url: string }[]>(
-    [],
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`group relative aspect-3/4 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/60 transition ${
+        isDragging
+          ? "z-50 scale-[1.03] border-indigo-500 shadow-2xl shadow-indigo-500/20"
+          : "hover:border-indigo-500/40"
+      }`}
+    >
+      {/* Drag Handle */}
+      <button
+        {...attributes}
+        {...listeners}
+        className="absolute left-2 bottom-2 z-10 flex h-8 w-8 cursor-grab items-center justify-center rounded-lg bg-zinc-950/80 text-zinc-400 backdrop-blur transition hover:text-white active:cursor-grabbing"
+      >
+        ☰
+      </button>
+
+      {/* Page Badge */}
+      <span className="absolute left-2 top-2 z-10 rounded-lg bg-zinc-950/90 px-2 py-1 text-[10px] font-bold text-indigo-400 backdrop-blur">
+        Page {idx + 1}
+      </span>
+
+      {/* Remove */}
+      <button
+        onClick={onRemove}
+        className="absolute right-2 top-2 z-10 rounded-lg bg-red-500/90 p-1.5 text-white opacity-0 shadow-lg backdrop-blur transition hover:bg-red-600 group-hover:opacity-100"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M3 6h18" />
+          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+        </svg>
+      </button>
+
+      {/* Image */}
+      <img
+        src={file.url}
+        alt={file.name}
+        className="h-full w-full object-cover object-top transition duration-300 group-hover:scale-[1.02]"
+      />
+
+      {/* Overlay */}
+      <div className="pointer-events-none absolute inset-0 bg-black/10 opacity-0 transition group-hover:opacity-100" />
+    </div>
   );
-  const handlePagesChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    chapterId: string,
-  ) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      const filesArray = Array.from(files);
-      const mappedFiles = filesArray.map((file) => ({
-        name: file.name,
-        url: URL.createObjectURL(file),
-      }));
-      setTempPages(mappedFiles);
-      setActiveUploadChapterId(chapterId);
-    }
-  };
-  const handleOpenPreview = (chapterId: string, savedPages: string[]) => {
-    const mappedPages = savedPages.map((url, idx) => ({
-      name: `Page_${idx + 1}.jpg`,
-      url: url,
-    }));
-    setTempPages(mappedPages);
-    setActiveUploadChapterId(chapterId);
-  };
-  const saveUploadedPages = () => {
-    if (!activeUploadChapterId) return;
-    setChapters((prev) =>
-      prev.map((c) =>
-        c.id === activeUploadChapterId
-          ? { ...c, pages: tempPages.map((p) => p.url) }
-          : c,
-      ),
-    );
-    setActiveUploadChapterId(null);
-    setTempPages([]);
-  };
-  const cancelUploadedPages = () => {
-    tempPages.forEach((p) => URL.revokeObjectURL(p.url));
-    setActiveUploadChapterId(null);
-    setTempPages([]);
-  };
-  const handleAppendPages = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      const filesArray = Array.from(files);
+}
 
-      const mappedNewFiles = filesArray.map((file) => ({
-        name: file.name,
-        url: URL.createObjectURL(file),
-      }));
-      setTempPages((prev) => [...prev, ...mappedNewFiles]);
-    }
-  };
-  const removeSingleTempPage = (indexToRemove: number) => {
-    setTempPages((prev) => {
-      const target = prev[indexToRemove];
-      if (target) URL.revokeObjectURL(target.url);
-      return prev.filter((_, idx) => idx !== indexToRemove);
-    });
-  };
+export default function UploadPage() {
+  const [activeTemplate, setActiveTemplate] = useState<string>("doujinshi");
 
   // COVER IMAGE STATE
   const [coverImage, setCoverImage] = useState<string | null>(null);
@@ -296,6 +299,119 @@ export default function UploadPage() {
     }
     return a.sub - b.sub;
   });
+  const pointerSensor = useSensor(PointerSensor, {
+    activationConstraint: {
+      distance: 8,
+    },
+  });
+  const sensors = useSensors(pointerSensor);
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+  const handleDragEnd = (event: any) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setChapters((items) => {
+      const oldIndex = items.findIndex((i) => i.id === active.id);
+      const newIndex = items.findIndex((i) => i.id === over.id);
+      const reordered = arrayMove(items, oldIndex, newIndex);
+      return reordered.map((chapter, index) => ({
+        ...chapter,
+        main: index + 1,
+      }));
+    });
+  };
+
+  // PAGES STATE MANAGEMENT
+  const [activeUploadChapterId, setActiveUploadChapterId] = useState<
+    string | null
+  >(null);
+  const [tempPages, setTempPages] = useState<TempPage[]>([]);
+  const handlePagesChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    chapterId: string,
+  ) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const filesArray = Array.from(files);
+      const mappedFiles = filesArray.map((file) => ({
+        id: uuidv7(),
+        name: file.name,
+        url: URL.createObjectURL(file),
+      }));
+      setTempPages((prev) => [...prev, ...mappedFiles]);
+      setActiveUploadChapterId(chapterId);
+    }
+  };
+  const handleOpenPreview = (chapterId: string, savedPages: string[]) => {
+    const mappedPages = savedPages.map((url, idx) => ({
+      id: uuidv7(),
+      name: `Page_${idx + 1}.jpg`,
+      url: url,
+    }));
+    setTempPages(mappedPages);
+    setActiveUploadChapterId(chapterId);
+  };
+  const saveUploadedPages = () => {
+    if (!activeUploadChapterId) return;
+    setChapters((prev) =>
+      prev.map((c) =>
+        c.id === activeUploadChapterId
+          ? { ...c, pages: tempPages.map((p) => p.url) }
+          : c,
+      ),
+    );
+    setActiveUploadChapterId(null);
+    setTempPages([]);
+  };
+  const cancelUploadedPages = () => {
+    tempPages.forEach((p) => URL.revokeObjectURL(p.url));
+    setActiveUploadChapterId(null);
+    setTempPages([]);
+  };
+  const handleAppendPages = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const filesArray = Array.from(files);
+
+      const mappedNewFiles = filesArray.map((file) => ({
+        id: uuidv7(),
+        name: file.name,
+        url: URL.createObjectURL(file),
+      }));
+      setTempPages((prev) => [...prev, ...mappedNewFiles]);
+    }
+  };
+  const removeSingleTempPage = (indexToRemove: number) => {
+    setTempPages((prev) => {
+      const target = prev[indexToRemove];
+      if (target) URL.revokeObjectURL(target.url);
+      return prev.filter((_, idx) => idx !== indexToRemove);
+    });
+  };
+  const sensorsPages = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+  const handleDragEndPages = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) return;
+
+    setTempPages((prev) => {
+      const oldIndex = prev.findIndex((p) => p.id === active.id);
+      const newIndex = prev.findIndex((p) => p.id === over.id);
+
+      return arrayMove(prev, oldIndex, newIndex);
+    });
+  }, []);
 
   if (!isMounted) {
     return (
@@ -627,7 +743,7 @@ export default function UploadPage() {
                           {chapter.pages.length === 0 ? (
                             // 1. TAMPILAN JIKA BELUM ADA GAMBAR (Tombol Upload Sederhana & Bersih)
                             <label
-                              htmlFor={uniqueInputId}
+                              htmlFor={`input-file-chapter-${chapter.id}`}
                               className="md:col-span-5 flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/20 px-4 py-7 text-zinc-400 transition duration-200 hover:border-indigo-500/50 hover:bg-zinc-900/50 hover:text-indigo-300"
                             >
                               <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 shadow-xs">
@@ -658,7 +774,8 @@ export default function UploadPage() {
 
                               <input
                                 type="file"
-                                id={uniqueInputId}
+                                // GANTI INI: Samakan dengan htmlFor milik label di atas
+                                id={`input-file-chapter-${chapter.id}`}
                                 accept="image/*"
                                 className="hidden"
                                 multiple
@@ -713,6 +830,7 @@ export default function UploadPage() {
                               <div className="flex items-center gap-1.5 shrink-0">
                                 {/* Tombol Manage / Edit (Membuka Popup Grid) */}
                                 <button
+                                  type="button"
                                   onClick={() =>
                                     handleOpenPreview(chapter.id, chapter.pages)
                                   }
@@ -721,9 +839,9 @@ export default function UploadPage() {
                                   Manage
                                 </button>
 
-                                {/* Tombol Re-upload Cepat (Menimpa file tanpa harus buka modal) */}
+                                {/* Tombol Re-upload Cepat */}
                                 <label
-                                  htmlFor={uniqueInputId}
+                                  htmlFor={`replace-file-chapter-${chapter.id}`}
                                   className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-400 transition hover:border-zinc-700 hover:text-zinc-200"
                                   title="Replace all files"
                                 >
@@ -742,7 +860,7 @@ export default function UploadPage() {
                                   </svg>
                                   <input
                                     type="file"
-                                    id={uniqueInputId}
+                                    id={`replace-file-chapter-${chapter.id}`}
                                     accept="image/*"
                                     className="hidden"
                                     multiple
@@ -821,81 +939,54 @@ export default function UploadPage() {
 
               {/* ================= BODY ================= */}
               <div className="max-h-[calc(100vh-180px)] overflow-y-auto p-4 mb-5">
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-                  {tempPages.map((file, idx) => (
-                    <div
-                      key={idx}
-                      className="group relative aspect-3/4 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/60 transition hover:border-indigo-500/40"
+                <DndContext
+                  sensors={sensorsPages}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEndPages}
+                >
+                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                    <SortableContext
+                      items={tempPages.map((p) => p.id)}
+                      strategy={rectSortingStrategy}
                     >
-                      {/* Page Badge */}
-                      <span className="absolute left-2 top-2 z-10 rounded-lg bg-zinc-950/90 px-2 py-1 text-[10px] font-bold text-indigo-400 backdrop-blur">
-                        Page {idx + 1}
-                      </span>
+                      {tempPages.map((file, idx) => (
+                        <SortablePageCard
+                          key={file.id}
+                          file={file}
+                          idx={idx}
+                          onRemove={() => removeSingleTempPage(idx)}
+                        />
+                      ))}
+                    </SortableContext>
+                    <label
+                      htmlFor="modal-file-append-input"
+                      className="group flex aspect-3/4 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/20 text-zinc-500 transition hover:border-indigo-500 hover:bg-zinc-900/40 hover:text-indigo-400"
+                    >
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900 transition group-hover:border-indigo-500/50 group-hover:bg-indigo-500/10">
+                        <span className="text-xl font-light">+</span>
+                      </div>
 
-                      {/* Remove */}
-                      <button
-                        onClick={() => removeSingleTempPage(idx)}
-                        className="absolute right-2 top-2 z-10 rounded-lg bg-red-500/90 p-1.5 text-white opacity-0 shadow-lg backdrop-blur transition hover:bg-red-600 group-hover:opacity-100"
-                        title="Remove page"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M3 6h18" />
-                          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                        </svg>
-                      </button>
+                      <div className="text-center">
+                        <p className="text-xs font-semibold">Add Pages</p>
+                        <p className="mt-1 text-[10px] text-zinc-600">
+                          JPG / PNG / ZIP
+                        </p>
+                      </div>
 
-                      {/* Image */}
-                      <img
-                        src={file.url}
-                        alt={file.name}
-                        className="h-full w-full object-cover object-top transition duration-300 group-hover:scale-[1.02]"
+                      <input
+                        type="file"
+                        id="modal-file-append-input"
+                        accept="image/*"
+                        className="hidden"
+                        multiple
+                        onChange={handleAppendPages}
+                        onClick={(e) => {
+                          (e.target as HTMLInputElement).value = "";
+                        }}
                       />
-
-                      {/* Hover Overlay */}
-                      <div className="pointer-events-none absolute inset-0 bg-black/10 opacity-0 transition group-hover:opacity-100" />
-                    </div>
-                  ))}
-
-                  {/* Add More */}
-                  <label
-                    htmlFor={uniqueInputId}
-                    className="group flex aspect-3/4 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/20 text-zinc-500 transition hover:border-indigo-500 hover:bg-zinc-900/40 hover:text-indigo-400"
-                  >
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900 transition group-hover:border-indigo-500/50 group-hover:bg-indigo-500/10">
-                      <span className="text-xl font-light">+</span>
-                    </div>
-
-                    <div className="text-center">
-                      <p className="text-xs font-semibold">Add Pages</p>
-                      <p className="mt-1 text-[10px] text-zinc-600">
-                        JPG / PNG / ZIP
-                      </p>
-                    </div>
-
-                    <input
-                      type="file"
-                      id={uniqueInputId}
-                      accept="image/*"
-                      className="hidden"
-                      multiple
-                      onChange={handleAppendPages}
-                      onClick={(e) => {
-                        (e.target as HTMLInputElement).value = "";
-                      }}
-                    />
-                  </label>
-                </div>
+                    </label>
+                  </div>
+                </DndContext>
               </div>
             </div>
           </div>
