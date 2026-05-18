@@ -86,11 +86,13 @@ export default function ComicDetailPage() {
               </button>
 
               {/* Edit */}
-              <button className="group flex items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-3 text-sm text-zinc-300 transition hover:border-amber-500 hover:bg-amber-500/10 hover:text-white">
+              <Link
+                href="/comic/solo-leveling/edit"
+                className="group flex items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-3 text-sm text-zinc-300 transition hover:border-amber-500 hover:bg-amber-500/10 hover:text-white"
+              >
                 <Pencil className="h-4 w-4 transition group-hover:scale-110" />
-
                 <span>Edit Comic</span>
-              </button>
+              </Link>
 
               {/* Delete */}
               <button className="group flex items-center gap-2 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300 transition hover:border-red-500/40 hover:bg-red-500/20 hover:text-red-200">

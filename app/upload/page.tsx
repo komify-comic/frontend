@@ -33,7 +33,7 @@ import {
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { getCroppedImg } from "./cropImage";
+import { getCroppedImg } from "@/lib/cropImage";
 
 type Chapter = {
   id: string;
