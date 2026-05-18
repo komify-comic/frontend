@@ -40,6 +40,7 @@ type Chapter = {
   main: number;
   sub: number;
   title: string;
+  censored: string;
   language: string;
   pages: string[];
 };
@@ -163,7 +164,15 @@ export default function UploadPage() {
 
   // CHAPTER STATE MANAGEMENT
   const [chapters, setChapters] = useState<Chapter[]>([
-    { id: uuidv7(), main: 1, sub: 0, title: "", language: "en", pages: [] },
+    {
+      id: uuidv7(),
+      main: 1,
+      sub: 0,
+      title: "",
+      censored: "censored",
+      language: "en",
+      pages: [],
+    },
   ]);
   const getSortedList = (list: Chapter[]) => {
     return [...list].sort((a, b) => {
@@ -184,6 +193,7 @@ export default function UploadPage() {
           main: lastMain + 1,
           sub: 0,
           title: "",
+          censored: "censored",
           language: "en",
           pages: [],
         },
@@ -718,8 +728,24 @@ export default function UploadPage() {
                             onChange={(e) =>
                               updateChapter(chapter.id, "title", e.target.value)
                             }
-                            className="md:col-span-3 w-full rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 outline-none transition focus:border-indigo-500"
+                            className="md:col-span-2 w-full rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 outline-none transition focus:border-indigo-500"
                           />
+
+                          {/* censored/Uncesored */}
+                          <select
+                            value={chapter.censored}
+                            onChange={(e) =>
+                              updateChapter(
+                                chapter.id,
+                                "censored",
+                                e.target.value,
+                              )
+                            }
+                            className="md:col-span-1 w-full rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 outline-none transition focus:border-indigo-500"
+                          >
+                            <option value="censored">Censored</option>
+                            <option value="uncensored">Uncensored</option>
+                          </select>
 
                           {/* Language */}
                           <select

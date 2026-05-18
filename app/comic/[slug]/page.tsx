@@ -338,11 +338,14 @@ export default function ComicDetailPage() {
 
               {/* Right */}
               <div className="flex items-center gap-3">
-                {/* Read Progress */}
-                <span className="hidden rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-[11px] font-medium text-emerald-300 sm:block">
-                  Read
+                {/* Censored/Uncesored */}
+                <span className="hidden rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-[11px] font-semibold text-emerald-300 shadow-sm shadow-emerald-500/10 sm:block">
+                  Uncensored
                 </span>
-
+                /
+                <span className="hidden rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-[11px] font-semibold text-amber-300 shadow-sm shadow-amber-500/10 sm:block">
+                  Censored
+                </span>
                 {/* Action */}
                 <Link
                   href="/comic/solo-leveling/chapter/120"

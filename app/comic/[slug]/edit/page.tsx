@@ -140,27 +140,23 @@ export default function EditComicPage() {
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         {/* Left */}
         <div className="flex items-center gap-4">
-          <Link
-            href="/comic/solo-leveling-ragnarok"
-            className="flex h-11 w-11 items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-900 text-zinc-300 transition hover:border-indigo-500 hover:text-white"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-
           <div>
             <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
               Komify
             </p>
 
-            <h1 className="text-2xl font-black text-white">Edit Comic</h1>
+            <h1 className="text-2xl font-black text-white">Edit Comic #1</h1>
           </div>
         </div>
 
         {/* Right */}
         <div className="flex items-center gap-3">
-          <button className="rounded-2xl border border-zinc-800 bg-zinc-900 px-5 py-3 text-sm font-semibold text-zinc-300 transition hover:bg-zinc-800 hover:text-white">
+          <Link
+            href="/comic/solo-leveling-ragnarok"
+            className="rounded-2xl border border-zinc-800 bg-zinc-900 px-5 py-3 text-sm font-semibold text-zinc-300 transition hover:bg-zinc-800 hover:text-white"
+          >
             Cancel
-          </button>
+          </Link>
 
           <button className="flex items-center gap-2 rounded-2xl bg-indigo-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-400">
             <Save className="h-4 w-4" />
@@ -270,19 +266,6 @@ export default function EditComicPage() {
                 <BookOpen className="h-4 w-4 text-indigo-400" />
                 Metadata
               </h2>
-
-              {/* Center Comic ID */}
-              <div className="absolute left-1/2 -translate-x-1/2">
-                <div className="flex items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-2">
-                  <div className="h-2 w-2 rounded-full bg-indigo-400" />
-
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
-                    Comic ID
-                  </span>
-
-                  <span className="text-xs font-bold text-white">#1</span>
-                </div>
-              </div>
 
               <button className="flex items-center gap-2 rounded-2xl border border-indigo-500/20 bg-indigo-500/10 px-4 py-2 text-xs font-semibold text-indigo-300 transition hover:bg-indigo-500/20 hover:text-white">
                 <Sparkles className="h-4 w-4" />
