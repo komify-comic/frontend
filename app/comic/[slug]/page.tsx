@@ -1,3 +1,8 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+
 import {
   Star,
   Clock3,
@@ -5,11 +10,24 @@ import {
   Pencil,
   Trash2,
   ArrowLeft,
+  ImageIcon,
   BookOpen,
 } from "lucide-react";
-import Link from "next/link";
 
 export default function ComicDetailPage() {
+  // Thumbnail Modal State
+  const [thumbnailModalOpen, setThumbnailModalOpen] = useState(false);
+  useEffect(() => {
+    if (thumbnailModalOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "auto";
+    }
+    return () => {
+      document.body.style.overflow = "auto";
+    };
+  }, [thumbnailModalOpen]);
+
   return (
     <main className="min-h-screen">
       {/* Hero */}
@@ -50,41 +68,6 @@ export default function ComicDetailPage() {
 
             {/* Right */}
             <nav className="hidden items-center gap-2 lg:flex">
-              {/* Rating */}
-              <div className="flex items-center gap-3 rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3">
-                <span className="text-sm font-medium text-yellow-200">
-                  Rating
-                </span>
-
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: 5 }).map((_, index) => (
-                    <button
-                      key={index}
-                      className="group transition hover:scale-110"
-                    >
-                      <Star
-                        className={`h-5 w-5 transition ${
-                          index < 4
-                            ? "fill-yellow-300 text-yellow-300"
-                            : "text-yellow-500/40"
-                        }`}
-                      />
-                    </button>
-                  ))}
-                </div>
-
-                <span className="text-xs font-medium text-yellow-300/80">
-                  4.0
-                </span>
-              </div>
-
-              {/* Bookmark */}
-              <button className="group flex items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-3 text-sm text-zinc-300 transition hover:border-indigo-500 hover:bg-indigo-500/10 hover:text-white">
-                <BookmarkPlus className="h-4 w-4 transition group-hover:scale-110" />
-
-                <span>Add Bookmark</span>
-              </button>
-
               {/* Edit */}
               <Link
                 href="/comic/solo-leveling/edit"
@@ -116,6 +99,53 @@ export default function ComicDetailPage() {
                 {/* Cover */}
                 <div className="relative overflow-hidden rounded-4xl border border-white/10 bg-zinc-900 shadow-2xl">
                   <div className="aspect-2/3 w-full bg-zinc-800" />
+                </div>
+              </div>
+
+              {/* Actions */}
+              {/* Actions */}
+              <div className="mt-5 space-y-3">
+                {/* Read First */}
+                <Link
+                  href="/comic/solo-leveling/chapter/1"
+                  className="group flex w-full items-center justify-center gap-2 rounded-3xl bg-indigo-500 px-5 py-4 text-sm font-bold text-white shadow-xl shadow-indigo-500/20 transition hover:scale-[1.02] hover:bg-indigo-400"
+                >
+                  <BookOpen className="h-4 w-4 transition group-hover:scale-110" />
+
+                  <span>Read First Chapter</span>
+                </Link>
+
+                {/* Bookmark */}
+                <button className="flex w-full items-center justify-center gap-2 rounded-3xl border border-zinc-800 bg-zinc-900/80 px-5 py-4 text-sm font-semibold text-zinc-300 transition hover:border-indigo-500 hover:bg-indigo-500/10 hover:text-white">
+                  <BookmarkPlus className="h-4 w-4" />
+
+                  <span>Add Bookmark</span>
+                </button>
+
+                {/* Rating */}
+                <div className="rounded-3xl border border-yellow-500/10 bg-yellow-500/5 p-4 backdrop-blur-sm">
+                  {/* Stars */}
+                  <div className="flex items-center justify-center gap-2">
+                    {Array.from({ length: 5 }).map((_, index) => (
+                      <button
+                        key={index}
+                        className="group transition hover:scale-115"
+                      >
+                        <Star
+                          className={`h-7 w-7 transition ${
+                            index < 4
+                              ? "fill-yellow-300 text-yellow-300"
+                              : "text-yellow-500/30"
+                          }`}
+                        />
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* User Rate */}
+                  <p className="mt-3 text-center text-[11px] text-zinc-500">
+                    Tap a star to rate this comic
+                  </p>
                 </div>
               </div>
             </div>
@@ -318,6 +348,13 @@ export default function ComicDetailPage() {
               {/* Left */}
               <div className="min-w-0">
                 <div className="flex items-center gap-3">
+                  {/* Edit Chapter */}
+                  <Link
+                    href="/comic/solo-leveling/chapter/120/edit"
+                    className="group flex items-center gap-2 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm font-medium text-amber-300 transition hover:bg-amber-500/20 hover:text-white"
+                  >
+                    <Pencil className="h-4 w-4 transition group-hover:scale-110" />
+                  </Link>
                   {/* Chapter Number */}
                   <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-zinc-800 text-sm font-bold text-zinc-200 transition group-hover:bg-indigo-500">
                     {8 - index}
@@ -338,15 +375,24 @@ export default function ComicDetailPage() {
 
               {/* Right */}
               <div className="flex items-center gap-3">
-                {/* Censored/Uncesored */}
+                {/* Censored / Uncensored */}
                 <span className="hidden rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-[11px] font-semibold text-emerald-300 shadow-sm shadow-emerald-500/10 sm:block">
                   Uncensored
                 </span>
-                /
-                <span className="hidden rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-[11px] font-semibold text-amber-300 shadow-sm shadow-amber-500/10 sm:block">
-                  Censored
-                </span>
-                {/* Action */}
+
+                {/* Thumbnail */}
+                <button
+                  onClick={() => {
+                    setThumbnailModalOpen(true);
+                  }}
+                  className="group flex items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900/80 px-4 py-3 text-sm font-medium text-zinc-300 transition hover:border-fuchsia-500 hover:bg-fuchsia-500/10 hover:text-white"
+                >
+                  <ImageIcon className="h-4 w-4 transition group-hover:scale-110" />
+
+                  <span>Thumbnail</span>
+                </button>
+
+                {/* Read */}
                 <Link
                   href="/comic/solo-leveling/chapter/120"
                   className="group flex items-center gap-2 rounded-2xl bg-zinc-800 px-5 py-3 text-sm font-medium text-zinc-200 transition hover:bg-indigo-500 hover:text-white"
@@ -387,6 +433,58 @@ export default function ComicDetailPage() {
           </button>
         </div>
       </section>
+
+      {/* ================= THUMBNAIL MODAL ================= */}
+      {thumbnailModalOpen && (
+        <div className="fixed inset-0 z-50 bg-zinc-950/80 backdrop-blur-md overscroll-none">
+          <div className="flex min-h-screen items-center justify-center p-4">
+            <div className="w-full max-w-400 rounded-3xl border border-zinc-800 bg-zinc-900 shadow-2xl">
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-zinc-800 px-6 py-4">
+                <div>
+                  <h2 className="text-lg font-bold text-white">
+                    Chapter Thumbnails
+                  </h2>
+
+                  <p className="mt-1 text-xs text-zinc-500">
+                    Preview all pages
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => setThumbnailModalOpen(false)}
+                  className="rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-2 text-sm text-zinc-400 transition hover:bg-zinc-800 hover:text-white"
+                >
+                  Close
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="max-h-[80vh] overflow-y-auto overscroll-contain p-5">
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 ">
+                  {Array.from({ length: 24 }).map((_, idx) => (
+                    <div
+                      key={idx}
+                      className="group relative aspect-3/4 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 transition hover:border-indigo-500/40"
+                    >
+                      {/* Page Badge */}
+                      <span className="absolute left-2 top-2 z-10 rounded-lg bg-zinc-950/90 px-2 py-1 text-[10px] font-bold text-indigo-400 backdrop-blur">
+                        Page {idx + 1}
+                      </span>
+
+                      {/* Thumbnail */}
+                      <div className="h-full w-full bg-zinc-800" />
+
+                      {/* Hover */}
+                      <div className="pointer-events-none absolute inset-0 bg-black/10 opacity-0 transition group-hover:opacity-100" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
