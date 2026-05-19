@@ -12,6 +12,8 @@ import {
   ArrowLeft,
   ImageIcon,
   BookOpen,
+  Plus,
+  GripVertical,
 } from "lucide-react";
 
 export default function ComicDetailPage() {
@@ -324,6 +326,21 @@ export default function ComicDetailPage() {
 
           {/* Controls */}
           <div className="flex flex-wrap gap-3">
+            {/* Add Chapter */}
+            <Link
+              href="/comic/solo-leveling/chapter/create"
+              className="flex items-center gap-2 rounded-2xl bg-indigo-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-400"
+            >
+              <Plus className="h-4 w-4" />
+              Add Chapter
+            </Link>
+
+            {/* Edit Ordering */}
+            <button className="flex items-center gap-2 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-5 py-3 text-sm font-semibold text-amber-300 transition hover:bg-amber-500/20 hover:text-white">
+              <GripVertical className="h-4 w-4" />
+              Edit Ordering
+            </button>
+
             {/* Search */}
             <input
               type="text"
