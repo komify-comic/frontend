@@ -2,7 +2,20 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-
+import {
+  DndContext,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   Star,
   Clock3,
@@ -17,6 +30,33 @@ import {
 } from "lucide-react";
 
 export default function ComicDetailPage() {
+  const [isOrderingMode, setIsOrderingMode] = useState(false);
+
+  // Chapters State
+  const [chapters, setChapters] = useState(
+    Array.from({ length: 8 }).map((_, index) => ({
+      id: crypto.randomUUID(),
+      number: 8 - index,
+      title: "The Awakening",
+    })),
+  );
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 6,
+      },
+    }),
+  );
+  const handleDragEnd = (event: any) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setChapters((items) => {
+      const oldIndex = items.findIndex((i) => i.id === active.id);
+      const newIndex = items.findIndex((i) => i.id === over.id);
+      return arrayMove(items, oldIndex, newIndex);
+    });
+  };
+
   // Thumbnail Modal State
   const [thumbnailModalOpen, setThumbnailModalOpen] = useState(false);
   useEffect(() => {
@@ -336,9 +376,17 @@ export default function ComicDetailPage() {
             </Link>
 
             {/* Edit Ordering */}
-            <button className="flex items-center gap-2 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-5 py-3 text-sm font-semibold text-amber-300 transition hover:bg-amber-500/20 hover:text-white">
+            <button
+              onClick={() => setIsOrderingMode((prev) => !prev)}
+              className={`flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-semibold transition ${
+                isOrderingMode
+                  ? "border border-emerald-500/20 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:text-white"
+                  : "border border-amber-500/20 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:text-white"
+              }`}
+            >
               <GripVertical className="h-4 w-4" />
-              Edit Ordering
+
+              {isOrderingMode ? "Save Ordering" : "Edit Ordering"}
             </button>
 
             {/* Search */}
@@ -356,72 +404,27 @@ export default function ComicDetailPage() {
         </div>
 
         {/* Chapter List */}
-        <div className="flex-1 space-y-3">
-          {Array.from({ length: 8 }).map((_, index) => (
-            <div
-              key={index}
-              className="group flex items-center justify-between rounded-3xl border border-zinc-800 bg-zinc-900/40 px-5 py-4 backdrop-blur-sm transition hover:border-indigo-500/40 hover:bg-zinc-900/80"
-            >
-              {/* Left */}
-              <div className="min-w-0">
-                <div className="flex items-center gap-3">
-                  {/* Edit Chapter */}
-                  <Link
-                    href="/comic/solo-leveling/chapter/120/edit"
-                    className="group flex items-center gap-2 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm font-medium text-amber-300 transition hover:bg-amber-500/20 hover:text-white"
-                  >
-                    <Pencil className="h-4 w-4 transition group-hover:scale-110" />
-                  </Link>
-                  {/* Chapter Number */}
-                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-zinc-800 text-sm font-bold text-zinc-200 transition group-hover:bg-indigo-500">
-                    {8 - index}
-                  </div>
-
-                  {/* Info */}
-                  <div>
-                    <h3 className="text-sm font-semibold text-zinc-100">
-                      The Awakening
-                    </h3>
-
-                    <p className="mt-1 text-xs text-zinc-500">
-                      Released 2 days ago
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right */}
-              <div className="flex items-center gap-3">
-                {/* Censored / Uncensored */}
-                <span className="hidden rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-[11px] font-semibold text-emerald-300 shadow-sm shadow-emerald-500/10 sm:block">
-                  Uncensored
-                </span>
-
-                {/* Thumbnail */}
-                <button
-                  onClick={() => {
-                    setThumbnailModalOpen(true);
-                  }}
-                  className="group flex items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900/80 px-4 py-3 text-sm font-medium text-zinc-300 transition hover:border-fuchsia-500 hover:bg-fuchsia-500/10 hover:text-white"
-                >
-                  <ImageIcon className="h-4 w-4 transition group-hover:scale-110" />
-
-                  <span>Thumbnail</span>
-                </button>
-
-                {/* Read */}
-                <Link
-                  href="/comic/solo-leveling/chapter/120"
-                  className="group flex items-center gap-2 rounded-2xl bg-zinc-800 px-5 py-3 text-sm font-medium text-zinc-200 transition hover:bg-indigo-500 hover:text-white"
-                >
-                  <BookOpen className="h-4 w-4 transition group-hover:scale-110" />
-
-                  <span>Read Chapter</span>
-                </Link>
-              </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={chapters.map((c) => c.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="flex-1 space-y-3">
+              {chapters.map((chapter) => (
+                <SortableChapterCard
+                  key={chapter.id}
+                  chapter={chapter}
+                  isOrderingMode={isOrderingMode}
+                  setThumbnailModalOpen={setThumbnailModalOpen}
+                />
+              ))}
             </div>
-          ))}
-        </div>
+          </SortableContext>
+        </DndContext>
 
         {/* Pagination */}
         <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
@@ -503,5 +506,118 @@ export default function ComicDetailPage() {
         </div>
       )}
     </main>
+  );
+}
+
+// Chapter Card Component
+function SortableChapterCard({
+  chapter,
+  isOrderingMode,
+  setThumbnailModalOpen,
+}: any) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: chapter.id,
+    disabled: !isOrderingMode,
+  });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    willChange: "transform",
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`group flex min-h-22 items-center justify-between rounded-3xl border px-5 py-4 backdrop-blur-sm transition-all duration-200 ${
+        isDragging
+          ? "z-50 border-amber-500 bg-zinc-900 shadow-2xl shadow-amber-500/10"
+          : isOrderingMode
+            ? "border-amber-500/20 bg-amber-500/5 hover:bg-zinc-900/80"
+            : "border-zinc-800 bg-zinc-900/40 hover:border-indigo-500/40 hover:bg-zinc-900/80"
+      }`}
+    >
+      {/* Left */}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-3">
+          {/* Drag Handle */}
+          <button
+            {...attributes}
+            {...listeners}
+            className={`flex h-12 w-12 px-3 py-3 shrink-0 items-center justify-center rounded-2xl border transition ${
+              isOrderingMode
+                ? "cursor-grab border-zinc-700 bg-zinc-900 text-zinc-400 hover:border-amber-500 hover:text-white active:cursor-grabbing"
+                : "pointer-events-none invisible opacity-0"
+            }`}
+          >
+            <GripVertical className="h-4 w-4" />
+          </button>
+
+          {/* Edit */}
+          <Link
+            href="/comic/solo-leveling/chapter/120/edit"
+            className={`flex py-2 px-2 h-12 w-12 shrink-0 items-center justify-center rounded-2xl border transition ${
+              isOrderingMode
+                ? "pointer-events-none invisible opacity-0"
+                : "border-amber-500/20 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:text-white"
+            }`}
+          >
+            <Pencil className="h-4 w-4" />
+          </Link>
+
+          {/* Number */}
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-zinc-800 text-sm font-bold text-zinc-200">
+            {chapter.number}
+          </div>
+
+          {/* Info */}
+          <div className="min-w-0">
+            <h3 className="truncate text-sm font-semibold text-zinc-100">
+              {chapter.title}
+            </h3>
+            <p className="mt-1 text-xs text-zinc-500">Released 2 days ago</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Right */}
+      <div
+        className={`flex items-center gap-3 transition-all duration-200 ${
+          isOrderingMode
+            ? "pointer-events-none invisible opacity-0"
+            : "visible opacity-100"
+        }`}
+      >
+        {/* Badge */}
+        <span className="hidden rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-[11px] font-semibold text-emerald-300 shadow-sm shadow-emerald-500/10 sm:block">
+          Uncensored
+        </span>
+
+        {/* Thumbnail */}
+        <button
+          onClick={() => setThumbnailModalOpen(true)}
+          className="group flex h-12 items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900/80 px-4 py-2 text-sm font-medium text-zinc-300 transition hover:border-fuchsia-500 hover:bg-fuchsia-500/10 hover:text-white"
+        >
+          <ImageIcon className="h-4 w-4 transition group-hover:scale-110" />
+          <span>Thumbnail</span>
+        </button>
+
+        {/* Read */}
+        <Link
+          href="/comic/solo-leveling/chapter/120"
+          className="group flex h-12 items-center gap-2 rounded-2xl bg-zinc-800 px-5 py-2 text-sm font-medium text-zinc-200 transition hover:bg-indigo-500 hover:text-white"
+        >
+          <BookOpen className="h-4 w-4 transition group-hover:scale-110" />
+          <span>Read Chapter</span>
+        </Link>
+      </div>
+    </div>
   );
 }
