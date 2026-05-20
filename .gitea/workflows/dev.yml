@@ -9,9 +9,15 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    # Menggunakan image Alpine yang ringan untuk menghindari bug filesystem var/run
+    runs-on: node:22-alpine
 
     steps:
+      # Wajib ditambahkan karena image alpine belum menyediakan client SSH secara bawaan
+      - name: Install OpenSSH Client
+        run: |
+          apk add --no-cache openssh-client
+
       - name: Deploy Frontend via Native SSH
         run: |
           set -e
