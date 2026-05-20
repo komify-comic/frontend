@@ -9,11 +9,15 @@ on:
 
 jobs:
   deploy:
-    # Menggunakan image Alpine yang ringan untuk menghindari bug filesystem var/run
-    runs-on: node:22-alpine
+    # Tetap gunakan label default yang dikenali oleh runner Anda
+    runs-on: ubuntu-latest
+    
+    # Trik: Paksa langkah di bawah dijalankan di dalam container Alpine
+    container:
+      image: node:22-alpine
 
     steps:
-      # Wajib ditambahkan karena image alpine belum menyediakan client SSH secara bawaan
+      # Langkah sisanya tetap sama persis seperti Solusi 1
       - name: Install OpenSSH Client
         run: |
           apk add --no-cache openssh-client
@@ -21,29 +25,19 @@ jobs:
       - name: Deploy Frontend via Native SSH
         run: |
           set -e
-          
-          # 1. Siapkan folder .ssh di dalam runner
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          
-          # 2. Tulis Private Key dari Secrets ke dalam file rahasia
           echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          
-          # 3. Matikan pengecekan host key agar tidak meminta konfirmasi yes/no secara interaktif
           echo -e "Host *\n\tStrictHostKeyChecking no\n" > ~/.ssh/config
           
-          # 4. Jalankan perintah deploy langsung menggunakan command ssh bawaan
           ssh -i ~/.ssh/id_ed25519 ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} << 'EOF'
             set -e
             echo "=== FRONTEND DEPLOY START ==="
-            
             cd /srv/dev/frontend
             git fetch origin
             git reset --hard origin/dev
-            
             cd /srv/dev/compose
             docker compose up -d --build frontend
-            
             echo "=== FRONTEND DEPLOY DONE ==="
           EOF
