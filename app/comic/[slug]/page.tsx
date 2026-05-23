@@ -91,6 +91,37 @@ type ComicMetadata = {
   updated_at: string;
 };
 
+type ComicChapter = {
+  id: string;
+  title: string;
+  chapter_number: string;
+  total_pages: number;
+  published_at: string;
+
+  language: {
+    code: string;
+    name: string;
+  };
+
+  censorship: {
+    id: string;
+    name: string;
+  };
+
+  pages: {
+    id: string;
+    filename: string;
+    filepath: string;
+    page_number: number;
+  }[];
+};
+
+type ComicChaptersResponse = {
+  data: ComicChapter[];
+  comic_id: string;
+  total_chapters: number;
+};
+
 async function getComicMetadata(id: string) {
   const baseUrl =
     process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
@@ -143,12 +174,39 @@ export default function ComicDetailPage() {
   }, [slug]);
 
   // Chapters State
-  const initialChapters = Array.from({ length: 7 }).map((_, index) => ({
-    id: `chapter-${index + 1}`,
-    number: 8 - index,
-    title: "The Awakening",
-  }));
-  const [chapters, setChapters] = useState(initialChapters);
+  const [chapters, setChapters] = useState<ComicChapter[]>([]);
+
+  const [loadingChapters, setLoadingChapters] = useState(true);
+  useEffect(() => {
+    const fetchChapters = async () => {
+      try {
+        setLoadingChapters(true);
+
+        const baseUrl =
+          process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
+
+        const response = await fetch(`${baseUrl}/comics/${slug}/chapters`, {
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch chapters");
+        }
+
+        const result: ComicChaptersResponse = await response.json();
+
+        setChapters(result.data || []);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setLoadingChapters(false);
+      }
+    };
+
+    if (slug) {
+      fetchChapters();
+    }
+  }, [slug]);
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -167,17 +225,20 @@ export default function ComicDetailPage() {
   };
 
   // Thumbnail Modal State
-  const [thumbnailModalOpen, setThumbnailModalOpen] = useState(false);
+  const [selectedChapter, setSelectedChapter] = useState<ComicChapter | null>(
+    null,
+  );
   useEffect(() => {
-    if (thumbnailModalOpen) {
+    if (selectedChapter) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "auto";
     }
+
     return () => {
       document.body.style.overflow = "auto";
     };
-  }, [thumbnailModalOpen]);
+  }, [selectedChapter]);
 
   if (loadingComic || !comic) {
     return (
@@ -229,7 +290,7 @@ export default function ComicDetailPage() {
             <nav className="hidden items-center gap-2 lg:flex">
               {/* Edit */}
               <Link
-                href="/comic/solo-leveling/edit"
+                href={`/comic/${comic.id}/edit`}
                 className="group flex items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-3 text-sm text-zinc-300 transition hover:border-amber-500 hover:bg-amber-500/10 hover:text-white"
               >
                 <Pencil className="h-4 w-4 transition group-hover:scale-110" />
@@ -469,14 +530,16 @@ export default function ComicDetailPage() {
               Chapters
             </h2>
 
-            <p className="mt-1 text-sm text-zinc-500">8 chapters available</p>
+            <p className="mt-1 text-sm text-zinc-500">
+              {chapters.length} chapters available
+            </p>
           </div>
 
           {/* Controls */}
           <div className="flex flex-wrap gap-3">
             {/* Add Chapter */}
             <Link
-              href="/comic/solo-leveling/chapter/create"
+              href={`/comic/${comic.id}/chapter/create`}
               className="flex items-center gap-2 rounded-2xl bg-indigo-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-400"
             >
               <Plus className="h-4 w-4" />
@@ -522,65 +585,85 @@ export default function ComicDetailPage() {
             strategy={verticalListSortingStrategy}
           >
             <div className="flex-1 space-y-3">
-              {chapters.map((chapter) => (
-                <SortableChapterCard
-                  key={chapter.id}
-                  chapter={chapter}
-                  isOrderingMode={isOrderingMode}
-                  setThumbnailModalOpen={setThumbnailModalOpen}
-                />
-              ))}
+              {loadingChapters ? (
+                Array.from({ length: 5 }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="animate-pulse rounded-3xl border border-zinc-800 bg-zinc-900/40 p-5"
+                  >
+                    <div className="h-5 w-40 rounded bg-zinc-800" />
+
+                    <div className="mt-3 h-4 w-24 rounded bg-zinc-800" />
+                  </div>
+                ))
+              ) : chapters.length === 0 ? (
+                <div className="rounded-3xl border border-zinc-800 bg-zinc-900/40 p-8 text-center text-sm text-zinc-500">
+                  No chapters available
+                </div>
+              ) : (
+                chapters.map((chapter) => (
+                  <SortableChapterCard
+                    key={chapter.id}
+                    chapter={chapter}
+                    comicId={comic.id}
+                    isOrderingMode={isOrderingMode}
+                    setSelectedChapter={setSelectedChapter}
+                  />
+                ))
+              )}
             </div>
           </SortableContext>
         </DndContext>
 
         {/* Pagination */}
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-          {/* Prev */}
-          <button className="rounded-2xl border border-zinc-800 bg-zinc-900/80 px-4 py-3 text-sm text-zinc-300 transition hover:border-indigo-500 hover:text-white">
-            Previous
-          </button>
-
-          {/* Pages */}
-          {[1, 2, 3, 4, 5].map((page) => (
-            <button
-              key={page}
-              className={`h-11 min-w-11 rounded-2xl px-4 text-sm font-semibold transition ${
-                page === 1
-                  ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/20"
-                  : "border border-zinc-800 bg-zinc-900/80 text-zinc-300 hover:border-indigo-500 hover:text-white"
-              }`}
-            >
-              {page}
+        {chapters.length >= 7 && (
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+            {/* Prev */}
+            <button className="rounded-2xl border border-zinc-800 bg-zinc-900/80 px-4 py-3 text-sm text-zinc-300 transition hover:border-indigo-500 hover:text-white">
+              Previous
             </button>
-          ))}
 
-          {/* Next */}
-          <button className="rounded-2xl border border-zinc-800 bg-zinc-900/80 px-4 py-3 text-sm text-zinc-300 transition hover:border-indigo-500 hover:text-white">
-            Next
-          </button>
-        </div>
+            {/* Pages */}
+            {[1, 2, 3, 4, 5].map((page) => (
+              <button
+                key={page}
+                className={`h-11 min-w-11 rounded-2xl px-4 text-sm font-semibold transition ${
+                  page === 1
+                    ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/20"
+                    : "border border-zinc-800 bg-zinc-900/80 text-zinc-300 hover:border-indigo-500 hover:text-white"
+                }`}
+              >
+                {page}
+              </button>
+            ))}
+
+            {/* Next */}
+            <button className="rounded-2xl border border-zinc-800 bg-zinc-900/80 px-4 py-3 text-sm text-zinc-300 transition hover:border-indigo-500 hover:text-white">
+              Next
+            </button>
+          </div>
+        )}
       </section>
 
       {/* ================= THUMBNAIL MODAL ================= */}
-      {thumbnailModalOpen && (
-        <div className="fixed inset-0 z-50 bg-zinc-950/80 backdrop-blur-md overscroll-none">
+      {selectedChapter && (
+        <div className="fixed inset-0 z-50 bg-zinc-950/80 backdrop-blur-md">
           <div className="flex min-h-screen items-center justify-center p-4">
             <div className="w-full max-w-400 rounded-3xl border border-zinc-800 bg-zinc-900 shadow-2xl">
               {/* Header */}
               <div className="flex items-center justify-between border-b border-zinc-800 px-6 py-4">
                 <div>
                   <h2 className="text-lg font-bold text-white">
-                    Chapter Thumbnails
+                    {selectedChapter.title}
                   </h2>
 
                   <p className="mt-1 text-xs text-zinc-500">
-                    Preview all pages
+                    {selectedChapter.total_pages} pages
                   </p>
                 </div>
 
                 <button
-                  onClick={() => setThumbnailModalOpen(false)}
+                  onClick={() => setSelectedChapter(null)}
                   className="rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-2 text-sm text-zinc-400 transition hover:bg-zinc-800 hover:text-white"
                 >
                   Close
@@ -588,26 +671,41 @@ export default function ComicDetailPage() {
               </div>
 
               {/* Body */}
-              <div className="max-h-[80vh] overflow-y-auto overscroll-contain p-5">
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-                  {Array.from({ length: 24 }).map((_, idx) => (
-                    <div
-                      key={idx}
-                      className="group relative aspect-3/4 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 transition hover:border-indigo-500/40"
-                    >
-                      {/* Page Badge */}
-                      <span className="absolute left-2 top-2 z-10 rounded-lg bg-zinc-950/90 px-2 py-1 text-[10px] font-bold text-indigo-400 backdrop-blur">
-                        Page {idx + 1}
-                      </span>
+              <div className="max-h-[80vh] overflow-y-auto p-5">
+                {selectedChapter.pages.length === 0 ? (
+                  <div className="flex items-center justify-center py-20 text-sm text-zinc-500">
+                    No thumbnails available
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                    {selectedChapter.pages.map((page) => {
+                      const imageUrl = `${process.env.NEXT_PUBLIC_BACKEND_URL}${page.filepath}`;
 
-                      {/* Thumbnail */}
-                      <div className="h-full w-full bg-zinc-800" />
+                      return (
+                        <div
+                          key={page.id}
+                          className="group relative aspect-3/4 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 transition hover:border-indigo-500/40"
+                        >
+                          {/* Page Badge */}
+                          <span className="absolute left-2 top-2 z-10 rounded-lg bg-zinc-950/90 px-2 py-1 text-[10px] font-bold text-indigo-400 backdrop-blur">
+                            Page {page.page_number}
+                          </span>
 
-                      {/* Hover */}
-                      <div className="pointer-events-none absolute inset-0 bg-black/10 opacity-0 transition group-hover:opacity-100" />
-                    </div>
-                  ))}
-                </div>
+                          {/* Thumbnail */}
+                          <img
+                            src={imageUrl}
+                            alt={page.filename}
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                          />
+
+                          {/* Hover */}
+                          <div className="pointer-events-none absolute inset-0 bg-black/10 opacity-0 transition group-hover:opacity-100" />
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -620,9 +718,15 @@ export default function ComicDetailPage() {
 // Chapter Card Component
 function SortableChapterCard({
   chapter,
+  comicId,
   isOrderingMode,
-  setThumbnailModalOpen,
-}: any) {
+  setSelectedChapter,
+}: {
+  chapter: ComicChapter;
+  comicId: string;
+  isOrderingMode: boolean;
+  setSelectedChapter: (chapter: ComicChapter | null) => void;
+}) {
   const {
     attributes,
     listeners,
@@ -639,6 +743,13 @@ function SortableChapterCard({
     transition,
     willChange: "transform",
   };
+
+  const baseUrl =
+    process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
+
+  const thumbnail = chapter.pages?.[0]?.filepath
+    ? `${baseUrl}${chapter.pages[0].filepath}`
+    : null;
 
   return (
     <div
@@ -670,7 +781,7 @@ function SortableChapterCard({
 
           {/* Edit */}
           <Link
-            href="/comic/solo-leveling/chapter/120/edit"
+            href={`/comic/${comicId}/chapter/${chapter.id}/edit`}
             className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border transition ${
               isOrderingMode
                 ? "pointer-events-none invisible opacity-0"
@@ -682,7 +793,7 @@ function SortableChapterCard({
 
           {/* Number */}
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-zinc-800 text-sm font-bold text-zinc-200">
-            {chapter.number}
+            {chapter.chapter_number}
           </div>
 
           {/* Info */}
@@ -690,7 +801,9 @@ function SortableChapterCard({
             <h3 className="truncate text-sm font-semibold text-zinc-100">
               {chapter.title}
             </h3>
-            <p className="mt-1 text-xs text-zinc-500">Released 2 days ago</p>
+            <p className="mt-1 text-xs text-zinc-500">
+              Released {new Date(chapter.published_at).toLocaleDateString()}
+            </p>
           </div>
         </div>
       </div>
@@ -705,21 +818,22 @@ function SortableChapterCard({
       >
         {/* Badge */}
         <span className="hidden rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-[11px] font-semibold text-emerald-300 shadow-sm shadow-emerald-500/10 sm:block">
-          Uncensored
+          {chapter.censorship?.name || "Unknown"}
         </span>
 
         {/* Thumbnail */}
         <button
-          onClick={() => setThumbnailModalOpen(true)}
-          className="group flex h-12 items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900/80 px-4 py-2 text-sm font-medium text-zinc-300 transition hover:border-fuchsia-500 hover:bg-fuchsia-500/10 hover:text-white"
+          onClick={() => setSelectedChapter(chapter)}
+          className="group flex h-12 items-center gap-2 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/80 px-3 py-2 text-sm font-medium text-zinc-300 transition hover:border-fuchsia-500 hover:bg-fuchsia-500/10 hover:text-white"
         >
           <ImageIcon className="h-4 w-4 transition group-hover:scale-110" />
+
           <span>Thumbnail</span>
         </button>
 
         {/* Read */}
         <Link
-          href="/comic/solo-leveling/chapter/120"
+          href={`/comic/${comicId}/chapter/${chapter.id}`}
           className="group flex h-12 items-center gap-2 rounded-2xl bg-zinc-800 px-5 py-2 text-sm font-medium text-zinc-200 transition hover:bg-indigo-500 hover:text-white"
         >
           <BookOpen className="h-4 w-4 transition group-hover:scale-110" />

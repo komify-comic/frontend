@@ -425,71 +425,75 @@ export default function HomePage() {
             )}
 
             {/* Pagination */}
-            <div className="mt-10 flex items-center justify-center gap-2">
-              {/* Prev */}
-              <button
-                disabled={page === 1}
-                onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
-                className="rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm text-zinc-400 transition hover:border-indigo-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Prev
-              </button>
-
-              {/* First Page */}
-              {!visiblePages.includes(1) && (
-                <>
-                  <button
-                    onClick={() => setPage(1)}
-                    className="h-10 w-10 rounded-xl border border-zinc-800 bg-zinc-900/60 text-sm text-zinc-400 transition hover:border-indigo-500 hover:text-white"
-                  >
-                    1
-                  </button>
-
-                  <span className="px-1 text-zinc-500">...</span>
-                </>
-              )}
-
-              {/* Pages */}
-              {visiblePages.map((p) => (
+            {pagination.total_data > 10 && (
+              <div className="mt-10 flex items-center justify-center gap-2">
+                {/* Prev */}
                 <button
-                  key={p}
-                  onClick={() => setPage(p)}
-                  className={`h-10 min-w-10 rounded-xl px-4 text-sm font-semibold transition ${
-                    page === p
-                      ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/20"
-                      : "border border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:border-indigo-500 hover:text-white"
-                  }`}
+                  disabled={page === 1}
+                  onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                  className="rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm text-zinc-400 transition hover:border-indigo-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  {p}
+                  Prev
                 </button>
-              ))}
 
-              {/* Last Page */}
-              {!visiblePages.includes(pagination.total_pages) &&
-                pagination.total_pages > 1 && (
+                {/* First Page */}
+                {!visiblePages.includes(1) && (
                   <>
-                    <span className="px-1 text-zinc-500">...</span>
-
                     <button
-                      onClick={() => setPage(pagination.total_pages)}
+                      onClick={() => setPage(1)}
                       className="h-10 w-10 rounded-xl border border-zinc-800 bg-zinc-900/60 text-sm text-zinc-400 transition hover:border-indigo-500 hover:text-white"
                     >
-                      {pagination.total_pages}
+                      1
                     </button>
+
+                    <span className="px-1 text-zinc-500">...</span>
                   </>
                 )}
 
-              {/* Next */}
-              <button
-                disabled={!pagination.has_next}
-                onClick={() =>
-                  setPage((prev) => Math.min(prev + 1, pagination.total_pages))
-                }
-                className="rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm text-zinc-400 transition hover:border-indigo-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Next
-              </button>
-            </div>
+                {/* Pages */}
+                {visiblePages.map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setPage(p)}
+                    className={`h-10 min-w-10 rounded-xl px-4 text-sm font-semibold transition ${
+                      page === p
+                        ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/20"
+                        : "border border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:border-indigo-500 hover:text-white"
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+
+                {/* Last Page */}
+                {!visiblePages.includes(pagination.total_pages) &&
+                  pagination.total_pages > 1 && (
+                    <>
+                      <span className="px-1 text-zinc-500">...</span>
+
+                      <button
+                        onClick={() => setPage(pagination.total_pages)}
+                        className="h-10 w-10 rounded-xl border border-zinc-800 bg-zinc-900/60 text-sm text-zinc-400 transition hover:border-indigo-500 hover:text-white"
+                      >
+                        {pagination.total_pages}
+                      </button>
+                    </>
+                  )}
+
+                {/* Next */}
+                <button
+                  disabled={!pagination.has_next}
+                  onClick={() =>
+                    setPage((prev) =>
+                      Math.min(prev + 1, pagination.total_pages),
+                    )
+                  }
+                  className="rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm text-zinc-400 transition hover:border-indigo-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Next
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </section>

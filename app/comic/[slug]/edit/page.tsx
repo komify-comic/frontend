@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import Cropper from "react-easy-crop";
 import {
@@ -13,7 +14,73 @@ import {
 } from "lucide-react";
 import { getCroppedImg } from "@/lib/cropImage";
 
+type ComicMetadata = {
+  id: string;
+  title: string;
+  alternative_title: string | null;
+  description: string | null;
+  legacy_id: number;
+  cover_path: string | null;
+  total_chapters: number;
+
+  status: {
+    id: string;
+    name: string;
+  };
+
+  category: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+
+  tags: {
+    id: string;
+    name: string;
+    slug: string;
+  }[];
+
+  parodies: {
+    id: string;
+    name: string;
+    slug: string;
+  }[];
+
+  characters: {
+    id: string;
+    name: string;
+    slug: string;
+  }[];
+
+  artists: {
+    id: string;
+    name: string;
+    slug: string;
+  }[];
+
+  authors: {
+    id: string;
+    name: string;
+    slug: string;
+  }[];
+
+  groups: {
+    id: string;
+    name: string;
+    slug: string;
+  }[];
+
+  created_at: string;
+  updated_at: string;
+};
+
 export default function EditComicPage() {
+  const params = useParams();
+
+  const slug = params.slug as string;
+
+  const [loadingComic, setLoadingComic] = useState(true);
+
   // Fix Metadata Modal states
   const [fixModal, setFixModal] = useState<{
     open: boolean;
@@ -27,6 +94,7 @@ export default function EditComicPage() {
     preview: "",
   });
   const [metadata, setMetadata] = useState({
+    legacy_id: "",
     title: "",
     parodies: "",
     characters: "",
@@ -34,7 +102,52 @@ export default function EditComicPage() {
     authors: "",
     groups: "",
     tags: "",
+    description: "",
+    status: "",
   });
+  useEffect(() => {
+    const fetchComic = async () => {
+      try {
+        setLoadingComic(true);
+
+        const baseUrl =
+          process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
+
+        const response = await fetch(`${baseUrl}/comics/${slug}/metadata`, {
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch comic");
+        }
+
+        const data: ComicMetadata = await response.json();
+
+        setMetadata({
+          legacy_id: String(data.legacy_id),
+          title: data.title || "",
+          parodies: data.parodies.map((x) => x.name).join(", "),
+          characters: data.characters.map((x) => x.name).join(", "),
+          artists: data.artists.map((x) => x.name).join(", "),
+          authors: data.authors.map((x) => x.name).join(", "),
+          groups: data.groups.map((x) => x.name).join(", "),
+          tags: data.tags.map((x) => x.name).join(", "),
+          description: data.description || "",
+          status: data.status?.name || "",
+        });
+
+        setCoverImage(data.cover_path ? `${baseUrl}${data.cover_path}` : null);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setLoadingComic(false);
+      }
+    };
+
+    if (slug) {
+      fetchComic();
+    }
+  }, [slug]);
   const fixParagraph = useCallback((text: any) => {
     if (!text) return "";
     let result = Array.isArray(text) ? text.join(", ") : String(text);
@@ -134,6 +247,14 @@ export default function EditComicPage() {
     setCroppedAreaPixels(croppedAreaPixels);
   };
 
+  if (loadingComic) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-zinc-950">
+        <p className="text-sm text-zinc-500">Loading comic editor...</p>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-zinc-950 px-6 py-6">
       {/* ================= HEADER ================= */}
@@ -145,14 +266,16 @@ export default function EditComicPage() {
               Komify
             </p>
 
-            <h1 className="text-2xl font-black text-white">Edit Comic #1</h1>
+            <h1 className="text-2xl font-black text-white">
+              Edit Comic #{metadata.legacy_id}
+            </h1>
           </div>
         </div>
 
         {/* Right */}
         <div className="flex items-center gap-3">
           <Link
-            href="/comic/solo-leveling-ragnarok"
+            href={`/comic/${slug}`}
             className="rounded-2xl border border-zinc-800 bg-zinc-900 px-5 py-3 text-sm font-semibold text-zinc-300 transition hover:bg-zinc-800 hover:text-white"
           >
             Cancel
@@ -181,11 +304,17 @@ export default function EditComicPage() {
               {/* Status */}
               <select
                 className="rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-2 text-xs font-semibold text-zinc-300 outline-none transition focus:border-indigo-500"
-                defaultValue="ongoing"
+                value={metadata.status}
+                onChange={(e) =>
+                  setMetadata((prev) => ({
+                    ...prev,
+                    status: e.target.value,
+                  }))
+                }
               >
-                <option value="ongoing">Ongoing</option>
-                <option value="not-completed">Not Completed</option>
-                <option value="completed">Completed</option>
+                <option value="Ongoing">Ongoing</option>
+                <option value="Not Completed">Not Completed</option>
+                <option value="Completed">Completed</option>
               </select>
             </div>
 
@@ -266,11 +395,6 @@ export default function EditComicPage() {
                 <BookOpen className="h-4 w-4 text-indigo-400" />
                 Metadata
               </h2>
-
-              <button className="flex items-center gap-2 rounded-2xl border border-indigo-500/20 bg-indigo-500/10 px-4 py-2 text-xs font-semibold text-indigo-300 transition hover:bg-indigo-500/20 hover:text-white">
-                <Sparkles className="h-4 w-4" />
-                Extract
-              </button>
             </div>
 
             <div className="space-y-5">
@@ -330,6 +454,13 @@ export default function EditComicPage() {
             <textarea
               rows={8}
               placeholder="Write synopsis..."
+              value={metadata.description}
+              onChange={(e) =>
+                setMetadata((prev) => ({
+                  ...prev,
+                  description: e.target.value,
+                }))
+              }
               className="w-full rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-4 text-sm text-zinc-200 outline-none transition focus:border-indigo-500"
             />
           </section>

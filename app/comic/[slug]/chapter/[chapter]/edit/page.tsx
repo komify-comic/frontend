@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
   DndContext,
@@ -26,7 +27,67 @@ import {
 } from "lucide-react";
 import { CSS } from "@dnd-kit/utilities";
 
+type ChapterPage = {
+  id: string;
+  width: number | null;
+  height: number | null;
+  filename: string;
+  filepath: string;
+  filesize: number | null;
+  created_at: string;
+  page_number: number;
+};
+
+type ChapterResponse = {
+  comic: {
+    id: string;
+    title: string;
+    seo_slug: string | null;
+    legacy_id: number;
+    cover_path: string | null;
+    alternative_title: string | null;
+  };
+
+  pages: ChapterPage[];
+
+  chapter: {
+    id: string;
+    title: string;
+    chapter_number: string;
+
+    language: {
+      code: string;
+      name: string;
+    };
+
+    censorship: {
+      id: string;
+      name: string;
+    };
+
+    created_at: string;
+    updated_at: string;
+    total_pages: number;
+    published_at: string;
+  };
+
+  navigation: {
+    next_chapter: string | null;
+    prev_chapter: string | null;
+  };
+};
+
 export default function EditChapterPage() {
+  const params = useParams();
+
+  const slug = params.slug as string;
+  const chapterId = params.chapter as string;
+
+  const baseUrl =
+    process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
+
+  const [chapterData, setChapterData] = useState<ChapterResponse | null>(null);
+
   // DnD Sensors
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -56,13 +117,9 @@ export default function EditChapterPage() {
       page: number;
       url?: string;
       file?: File;
+      isExisting?: boolean;
     }[]
-  >(
-    Array.from({ length: 0 }).map((_, idx) => ({
-      id: crypto.randomUUID(),
-      page: idx + 1,
-    })),
-  );
+  >([]);
   const handleAddPages = () => {
     const currentLength = pages.length;
     const newPages = Array.from({ length: 5 }).map((_, idx) => ({
@@ -96,6 +153,44 @@ export default function EditChapterPage() {
   };
   const inputId = "chapter-pages-upload";
 
+  useEffect(() => {
+    const fetchChapter = async () => {
+      try {
+        const response = await fetch(
+          `${baseUrl}/comics/${slug}/chapters/${chapterId}`,
+          {
+            cache: "no-store",
+          },
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch chapter");
+        }
+
+        const data: ChapterResponse = await response.json();
+
+        setChapterData(data);
+
+        const mappedPages = data.pages
+          .sort((a, b) => a.page_number - b.page_number)
+          .map((page) => ({
+            id: page.id,
+            page: page.page_number,
+            url: `${baseUrl}${page.filepath}`,
+            isExisting: true,
+          }));
+
+        setPages(mappedPages);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    if (slug && chapterId) {
+      fetchChapter();
+    }
+  }, [slug, chapterId, baseUrl]);
+
   return (
     <main className="min-h-screen bg-zinc-950">
       <input
@@ -114,12 +209,14 @@ export default function EditChapterPage() {
         <div className="grid grid-cols-[1fr_auto_1fr] items-center px-6 py-4">
           {/* ================= LEFT ================= */}
           <div className="flex items-center gap-4">
-            <div>
+            <div className="min-w-0">
               <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
                 Edit Chapter
               </p>
 
-              <h1 className="text-2xl font-black text-white">Chapter 120</h1>
+              <h1 className="mt-1 text-2xl font-black text-white">
+                Chapter {chapterData?.chapter.chapter_number || "-"}
+              </h1>
             </div>
           </div>
 
@@ -136,7 +233,7 @@ export default function EditChapterPage() {
                 </span>
 
                 <span className="font-mono text-sm font-bold text-white">
-                  #1
+                  {slug}
                 </span>
               </div>
 
@@ -152,7 +249,7 @@ export default function EditChapterPage() {
                 </span>
 
                 <span className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-xs font-bold text-amber-300">
-                  #120
+                  #{chapterData?.chapter.chapter_number || "-"}
                 </span>
               </div>
             </div>
@@ -160,7 +257,7 @@ export default function EditChapterPage() {
 
           {/* ================= RIGHT ================= */}
           <div className="flex items-center justify-end gap-3">
-            <Link href="/comic/solo-leveling">
+            <Link href={`/comic/${chapterData?.comic.id || slug}`}>
               <button className="rounded-2xl border border-zinc-800 bg-zinc-900 px-5 py-3 text-sm font-semibold text-zinc-300 transition hover:bg-zinc-800 hover:text-white">
                 Cancel
               </button>
@@ -195,7 +292,7 @@ export default function EditChapterPage() {
 
                 <input
                   type="text"
-                  defaultValue="The Awakening"
+                  value={chapterData?.chapter.title || ""}
                   className="w-full rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-white outline-none transition focus:border-indigo-500"
                 />
               </div>
@@ -206,9 +303,13 @@ export default function EditChapterPage() {
                   Content
                 </label>
 
-                <select className="w-full rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-white outline-none transition focus:border-indigo-500">
-                  <option>Uncensored</option>
-                  <option>Censored</option>
+                <select
+                  value={chapterData?.chapter.censorship?.name || ""}
+                  className="w-full rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-white outline-none transition focus:border-indigo-500"
+                >
+                  <option value={chapterData?.chapter.censorship?.name}>
+                    {chapterData?.chapter.censorship?.name}
+                  </option>
                 </select>
               </div>
             </div>
@@ -233,7 +334,8 @@ export default function EditChapterPage() {
               <h2 className="text-lg font-bold text-white">Chapter Pages</h2>
 
               <p className="mt-1 text-xs text-zinc-500">
-                {pages.length} pages uploaded
+                {chapterData?.chapter.total_pages || pages.length} pages
+                uploaded
               </p>
             </div>
 
