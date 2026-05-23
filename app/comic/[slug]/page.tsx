@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import {
   DndContext,
   PointerSensor,
@@ -29,17 +31,124 @@ import {
   GripVertical,
 } from "lucide-react";
 
+type ComicMetadata = {
+  id: string;
+  title: string;
+  alternative_title: string | null;
+  description: string | null;
+  legacy_id: number;
+  cover_path: string | null;
+  total_chapters: number;
+
+  status: {
+    id: string;
+    name: string;
+  };
+
+  category: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+
+  tags: {
+    id: string;
+    name: string;
+    slug: string;
+  }[];
+
+  parodies: {
+    id: string;
+    name: string;
+    slug: string;
+  }[];
+
+  characters: {
+    id: string;
+    name: string;
+    slug: string;
+  }[];
+
+  artists: {
+    id: string;
+    name: string;
+    slug: string;
+  }[];
+
+  authors: {
+    id: string;
+    name: string;
+    slug: string;
+  }[];
+
+  groups: {
+    id: string;
+    name: string;
+    slug: string;
+  }[];
+
+  created_at: string;
+  updated_at: string;
+};
+
+async function getComicMetadata(id: string) {
+  const baseUrl =
+    process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
+
+  const response = await fetch(`${baseUrl}/comics/${id}/metadata`, {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch comic metadata");
+  }
+
+  return response.json();
+}
+
 export default function ComicDetailPage() {
   const [isOrderingMode, setIsOrderingMode] = useState(false);
 
+  const params = useParams();
+
+  const slug = params.slug as string;
+
+  const [comic, setComic] = useState<ComicMetadata | null>(null);
+
+  const [loadingComic, setLoadingComic] = useState(true);
+
+  const baseUrl =
+    process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
+
+  const coverUrl = comic?.cover_path ? `${baseUrl}${comic.cover_path}` : null;
+
+  useEffect(() => {
+    const fetchComic = async () => {
+      try {
+        setLoadingComic(true);
+
+        const data = await getComicMetadata(slug);
+
+        setComic(data);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setLoadingComic(false);
+      }
+    };
+
+    if (slug) {
+      fetchComic();
+    }
+  }, [slug]);
+
   // Chapters State
-  const [chapters, setChapters] = useState(
-    Array.from({ length: 8 }).map((_, index) => ({
-      id: crypto.randomUUID(),
-      number: 8 - index,
-      title: "The Awakening",
-    })),
-  );
+  const initialChapters = Array.from({ length: 7 }).map((_, index) => ({
+    id: `chapter-${index + 1}`,
+    number: 8 - index,
+    title: "The Awakening",
+  }));
+  const [chapters, setChapters] = useState(initialChapters);
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -69,6 +178,14 @@ export default function ComicDetailPage() {
       document.body.style.overflow = "auto";
     };
   }, [thumbnailModalOpen]);
+
+  if (loadingComic || !comic) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-zinc-950">
+        <div className="text-sm text-zinc-500">Loading comic...</div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen">
@@ -140,16 +257,26 @@ export default function ComicDetailPage() {
 
                 {/* Cover */}
                 <div className="relative overflow-hidden rounded-4xl border border-white/10 bg-zinc-900 shadow-2xl">
-                  <div className="aspect-2/3 w-full bg-zinc-800" />
+                  <div className="relative aspect-2/3 w-full overflow-hidden bg-zinc-800">
+                    {coverUrl ? (
+                      <Image
+                        src={coverUrl}
+                        alt={comic.title}
+                        fill
+                        className="object-cover"
+                        unoptimized
+                      />
+                    ) : (
+                      <div className="h-full w-full bg-zinc-800" />
+                    )}
+                  </div>
                 </div>
               </div>
 
               {/* Actions */}
-              {/* Actions */}
               <div className="mt-5 space-y-3">
-                {/* Read First */}
                 <Link
-                  href="/comic/solo-leveling/chapter/1"
+                  href="#"
                   className="group flex w-full items-center justify-center gap-2 rounded-3xl bg-indigo-500 px-5 py-4 text-sm font-bold text-white shadow-xl shadow-indigo-500/20 transition hover:scale-[1.02] hover:bg-indigo-400"
                 >
                   <BookOpen className="h-4 w-4 transition group-hover:scale-110" />
@@ -157,7 +284,6 @@ export default function ComicDetailPage() {
                   <span>Read First Chapter</span>
                 </Link>
 
-                {/* Bookmark */}
                 <button className="flex w-full items-center justify-center gap-2 rounded-3xl border border-zinc-800 bg-zinc-900/80 px-5 py-4 text-sm font-semibold text-zinc-300 transition hover:border-indigo-500 hover:bg-indigo-500/10 hover:text-white">
                   <BookmarkPlus className="h-4 w-4" />
 
@@ -166,7 +292,6 @@ export default function ComicDetailPage() {
 
                 {/* Rating */}
                 <div className="rounded-3xl border border-yellow-500/10 bg-yellow-500/5 p-4 backdrop-blur-sm">
-                  {/* Stars */}
                   <div className="flex items-center justify-center gap-2">
                     {Array.from({ length: 5 }).map((_, index) => (
                       <button
@@ -184,7 +309,6 @@ export default function ComicDetailPage() {
                     ))}
                   </div>
 
-                  {/* User Rate */}
                   <p className="mt-3 text-center text-[11px] text-zinc-500">
                     Tap a star to rate this comic
                   </p>
@@ -196,7 +320,7 @@ export default function ComicDetailPage() {
             <div className="flex flex-col justify-center">
               {/* Status */}
               <div className="mb-5 flex flex-wrap items-center gap-2">
-                {/* Comic ID */}
+                {/* ID */}
                 <div className="flex items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900/80 px-3 py-2 backdrop-blur-sm">
                   <div className="h-2 w-2 rounded-full bg-indigo-400" />
 
@@ -204,148 +328,132 @@ export default function ComicDetailPage() {
                     ID
                   </span>
 
-                  <span className="text-xs font-bold text-white">#000001</span>
+                  <span className="text-xs font-bold text-white">
+                    #{comic.legacy_id}
+                  </span>
                 </div>
-
-                {/* New Badge */}
-                <span className="rounded-2xl bg-indigo-500 px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-white shadow-lg shadow-indigo-500/20">
-                  New
-                </span>
 
                 {/* Status */}
                 <span className="rounded-2xl bg-emerald-500 px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-white shadow-lg shadow-emerald-500/20">
-                  Completed
+                  {comic.status.name}
                 </span>
 
                 {/* Type */}
                 <span className="rounded-2xl border border-zinc-700 bg-zinc-900/80 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-300">
-                  Manga
+                  {comic.category.name}
                 </span>
               </div>
 
               {/* Title */}
               <div className="group relative max-w-5xl">
                 <h1 className="line-clamp-2 min-h-20 text-4xl font-black tracking-tight text-white lg:min-h-30 lg:text-6xl lg:leading-[0.95]">
-                  Solo Leveling Ragnarok Side Story, and More Alternative Title
-                  Here, and More Alternative Title Here, and More Alternative
-                  Title Here
+                  {comic.title}
                 </h1>
 
-                {/* Full Title Tooltip */}
+                {/* Tooltip */}
                 <div className="pointer-events-none absolute left-0 top-full z-30 mt-4 w-max max-w-4xl rounded-2xl border border-zinc-800 bg-zinc-900/95 px-5 py-4 opacity-0 shadow-2xl backdrop-blur-xl transition duration-200 group-hover:opacity-100">
-                  <p className="text-sm leading-7 text-white">
-                    Solo Leveling Ragnarok Side Story, and More Alternative
-                    Title Here, and More Alternative Title Here, and More
-                    Alternative Title Here
-                  </p>
+                  <p className="text-sm leading-7 text-white">{comic.title}</p>
                 </div>
               </div>
 
               {/* Alternative */}
-              <p className="mt-3 max-w-4xl text-sm text-zinc-500">
-                Alternative Title Name Here • Japanese Name Here • Korean Name
-                Here
-              </p>
+              {comic.alternative_title && (
+                <p className="mt-3 max-w-4xl text-sm text-zinc-500">
+                  {comic.alternative_title}
+                </p>
+              )}
 
               {/* Metadata */}
               <div className="mt-5 rounded-3xl border border-zinc-800 bg-zinc-900/30 backdrop-blur-sm">
                 {[
                   {
                     label: "Parodies",
-                    values: ["Sword Art Online", "Overlord"],
+                    values: comic.parodies,
                   },
                   {
                     label: "Characters",
-                    values: ["Asuna", "Ainz Ooal Gown"],
+                    values: comic.characters,
                   },
                   {
                     label: "Authors",
-                    values: ["Tatsuki Fujimoto", "Gege Akutami"],
+                    values: comic.authors,
                   },
                   {
                     label: "Artists",
-                    values: ["Kishayama", "Redice Studio"],
+                    values: comic.artists,
                   },
                   {
                     label: "Groups",
-                    values: ["Circle-Red", "Studio-B"],
+                    values: comic.groups,
                   },
                   {
                     label: "Tags",
-                    values: [
-                      "Action",
-                      "Fantasy",
-                      "Adventure",
-                      "Strategy",
-                      "Magic",
-                    ],
+                    values: comic.tags,
                   },
-                ].map((item, index, array) => (
-                  <div
-                    key={item.label}
-                    className={`grid gap-4 px-5 py-4 lg:grid-cols-[100px_1fr] ${
-                      index !== array.length - 1
-                        ? "border-b border-zinc-800"
-                        : ""
-                    }`}
-                  >
-                    {/* Label Column */}
-                    <div className="pt-1">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
-                        {item.label}
-                      </p>
-                    </div>
+                ]
+                  .filter((item) => item.values.length > 0)
+                  .map((item, index, array) => (
+                    <div
+                      key={item.label}
+                      className={`grid gap-4 px-5 py-4 lg:grid-cols-[100px_1fr] ${
+                        index !== array.length - 1
+                          ? "border-b border-zinc-800"
+                          : ""
+                      }`}
+                    >
+                      {/* Label */}
+                      <div className="pt-1">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                          {item.label}
+                        </p>
+                      </div>
 
-                    {/* Value Column */}
-                    <div className="flex flex-wrap gap-2">
-                      {item.values.map((value) => (
-                        <button
-                          key={value}
-                          className="rounded-xl border border-zinc-800 bg-zinc-950/80 px-3 py-2 text-xs font-medium text-zinc-300 transition hover:border-indigo-500 hover:bg-indigo-500/10 hover:text-white"
-                        >
-                          {value}
-                        </button>
-                      ))}
+                      {/* Values */}
+                      <div className="flex flex-wrap gap-2">
+                        {item.values.map((value) => (
+                          <button
+                            key={value.id}
+                            className="rounded-xl border border-zinc-800 bg-zinc-950/80 px-3 py-2 text-xs font-medium text-zinc-300 transition hover:border-indigo-500 hover:bg-indigo-500/10 hover:text-white"
+                          >
+                            {value.name}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
               </div>
 
               {/* Quick Meta */}
               <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                {[
-                  {
-                    icon: <Clock3 className="h-4 w-4 text-indigo-400" />,
-                    label: "Created 2h ago",
-                  },
-                  {
-                    icon: <Clock3 className="h-4 w-4 text-indigo-400" />,
-                    label: "Updated 2h ago",
-                  },
-                ].map((item) => (
-                  <div
-                    key={item.label}
-                    className="flex items-center gap-3 rounded-2xl border border-white/5 bg-white/3 px-4 py-3 backdrop-blur-xl"
-                  >
-                    {item.icon}
+                <div className="flex items-center gap-3 rounded-2xl border border-white/5 bg-white/3 px-4 py-3 backdrop-blur-xl">
+                  <Clock3 className="h-4 w-4 text-indigo-400" />
 
-                    <span className="text-sm text-zinc-300">{item.label}</span>
-                  </div>
-                ))}
+                  <span className="text-sm text-zinc-300">
+                    {comic.total_chapters} Chapters
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-3 rounded-2xl border border-white/5 bg-white/3 px-4 py-3 backdrop-blur-xl">
+                  <Clock3 className="h-4 w-4 text-indigo-400" />
+
+                  <span className="text-sm text-zinc-300">
+                    Updated {new Date(comic.updated_at).toLocaleDateString()}
+                  </span>
+                </div>
               </div>
 
               {/* Synopsis */}
-              <div className="mt-5 max-w-5xl">
-                <h2 className="mb-3 text-lg font-bold text-white">Synopsis</h2>
+              {comic.description && (
+                <div className="mt-5 max-w-5xl">
+                  <h2 className="mb-3 text-lg font-bold text-white">
+                    Synopsis
+                  </h2>
 
-                <p className="line-clamp-4 text-sm leading-7 text-zinc-400">
-                  Lorem ipsum dolor sit amet consectetur adipisicing elit.
-                  Temporibus facere, nihil porro doloremque impedit
-                  exercitationem pariatur at ipsum accusantium illum inventore
-                  quaerat provident laboriosam voluptatem architecto eveniet
-                  natus.
-                </p>
-              </div>
+                  <p className="text-sm leading-7 text-zinc-400">
+                    {comic.description}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </section>
@@ -481,7 +589,7 @@ export default function ComicDetailPage() {
 
               {/* Body */}
               <div className="max-h-[80vh] overflow-y-auto overscroll-contain p-5">
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 ">
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
                   {Array.from({ length: 24 }).map((_, idx) => (
                     <div
                       key={idx}
@@ -551,7 +659,7 @@ function SortableChapterCard({
           <button
             {...attributes}
             {...listeners}
-            className={`flex h-12 w-12 px-3 py-3 shrink-0 items-center justify-center rounded-2xl border transition ${
+            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border transition ${
               isOrderingMode
                 ? "cursor-grab border-zinc-700 bg-zinc-900 text-zinc-400 hover:border-amber-500 hover:text-white active:cursor-grabbing"
                 : "pointer-events-none invisible opacity-0"
@@ -563,7 +671,7 @@ function SortableChapterCard({
           {/* Edit */}
           <Link
             href="/comic/solo-leveling/chapter/120/edit"
-            className={`flex py-2 px-2 h-12 w-12 shrink-0 items-center justify-center rounded-2xl border transition ${
+            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border transition ${
               isOrderingMode
                 ? "pointer-events-none invisible opacity-0"
                 : "border-amber-500/20 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:text-white"

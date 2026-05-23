@@ -1,3 +1,5 @@
+"use client";
+
 import {
   Bookmark,
   Upload,
@@ -9,8 +11,124 @@ import {
   Filter,
 } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+
+type Comic = {
+  id: string;
+  title: string;
+
+  seo_slug: string | null;
+
+  legacy_id: number;
+
+  cover_path: string | null;
+
+  published_at: string;
+
+  total_chapters: number;
+
+  rating_score: number;
+
+  rating_count: number;
+
+  status: {
+    id: string;
+    name: string;
+  };
+};
+
+type HomepageResponse = {
+  data: Comic[];
+  pagination: {
+    page: number;
+    limit: number;
+    has_next: boolean;
+    has_prev: boolean;
+    total_data: number;
+    total_pages: number;
+  };
+};
 
 export default function HomePage() {
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+
+  const [comics, setComics] = useState<Comic[]>([]);
+
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 10,
+    has_next: false,
+    has_prev: false,
+    total_data: 0,
+    total_pages: 1,
+  });
+
+  /* ================= FETCH ================= */
+  const fetchHomepage = async (targetPage: number) => {
+    try {
+      setLoading(true);
+
+      const baseUrl =
+        process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
+
+      const endpoint =
+        targetPage === 1
+          ? `${baseUrl}/comics/homepage`
+          : `${baseUrl}/comics/homepage?page=${targetPage}&limit=10`;
+
+      const response = await fetch(endpoint, {
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch homepage");
+      }
+
+      const result: HomepageResponse = await response.json();
+
+      setComics(result.data || []);
+
+      setPagination(
+        result.pagination || {
+          page: 1,
+          limit: 10,
+          has_next: false,
+          has_prev: false,
+          total_data: 0,
+          total_pages: 1,
+        },
+      );
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchHomepage(page);
+  }, [page]);
+
+  /* ================= PAGINATION ================= */
+  const visiblePages = useMemo(() => {
+    const total = pagination.total_pages;
+
+    if (total <= 5) {
+      return Array.from({ length: total }, (_, i) => i + 1);
+    }
+
+    if (page <= 3) {
+      return [1, 2, 3, 4, 5];
+    }
+
+    if (page >= total - 2) {
+      return [total - 4, total - 3, total - 2, total - 1, total];
+    }
+
+    return [page - 2, page - 1, page, page + 1, page + 2];
+  }, [page, pagination.total_pages]);
+
   return (
     <main className="min-h-screen">
       {/* Navbar */}
@@ -206,101 +324,169 @@ export default function HomePage() {
           <div>
             {/* Grid */}
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-5">
-              {Array.from({ length: 10 }).map((_, index) => {
-                const isCompleted = index % 2 === 0;
+              {loading
+                ? Array.from({ length: 10 }).map((_, index) => (
+                    <div
+                      key={index}
+                      className="animate-pulse rounded-2xl border border-zinc-800 bg-zinc-900/40 p-2"
+                    >
+                      <div className="aspect-2/3 rounded-2xl bg-zinc-800" />
 
-                const title =
-                  "Very Long Comic Title That Will Automatically Clamp Into Two Lines Instead Of Breaking The Entire Layout";
+                      <div className="mt-3 h-4 rounded bg-zinc-800" />
 
-                return (
-                  <Link
-                    key={index}
-                    href="/comic/solo-leveling-ragnarok"
-                    className="group block cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    {/* Cover */}
-                    <div className="relative aspect-2/3 overflow-hidden rounded-2xl bg-zinc-900 transition duration-300 group-hover:scale-[1.02]">
-                      {/* Top Badges */}
-                      <div className="absolute left-2 top-2 flex flex-wrap gap-2">
-                        {/* NEW */}
-                        <div className="rounded-lg bg-indigo-500 px-2 py-1 text-[10px] font-semibold text-white">
-                          NEW
-                        </div>
+                      <div className="mt-2 h-4 w-2/3 rounded bg-zinc-800" />
+                    </div>
+                  ))
+                : comics.map((comic) => {
+                    const isCompleted =
+                      comic.status?.name?.toLowerCase() === "complete";
 
-                        {/* Status */}
-                        <div
-                          className={`rounded-lg px-2 py-1 text-[10px] font-semibold text-white ${
-                            isCompleted ? "bg-emerald-500" : "bg-amber-500"
-                          }`}
-                        >
-                          {isCompleted ? "COMPLETE" : "ONGOING"}
-                        </div>
-                      </div>
+                    return (
+                      <Link
+                        key={comic.id}
+                        href={`/comic/${comic.id || comic.legacy_id}`}
+                        className="group block cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      >
+                        {/* Cover */}
+                        <div className="relative aspect-2/3 overflow-hidden rounded-2xl bg-zinc-900 transition duration-300 group-hover:scale-[1.02]">
+                          {/* Cover Image */}
+                          {comic.cover_path ? (
+                            <img
+                              src={`${process.env.NEXT_PUBLIC_BACKEND_URL}${comic.cover_path}`}
+                              alt={comic.title}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="h-full w-full bg-zinc-800" />
+                          )}
 
-                      {/* Bottom Overlay */}
-                      <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/90 via-black/50 to-transparent p-3">
-                        <div className="flex items-end justify-between gap-3">
-                          <div>
-                            <p className="text-xs font-semibold text-white">
-                              120 Chapters
-                            </p>
+                          {/* Top Badges */}
+                          <div className="absolute left-2 top-2 flex flex-wrap gap-2">
+                            {/* NEW */}
+                            {/* {comic.isNew && (
+                              <div className="rounded-lg bg-indigo-500 px-2 py-1 text-[10px] font-semibold text-white">
+                                NEW
+                              </div>
+                            )} */}
 
-                            <p className="mt-1 text-[10px] text-zinc-300">
-                              Updated 2h ago
-                            </p>
+                            {/* Status */}
+                            <div
+                              className={`rounded-lg px-2 py-1 text-[10px] font-semibold text-white ${
+                                isCompleted ? "bg-emerald-500" : "bg-amber-500"
+                              }`}
+                            >
+                              {comic.status?.name}
+                            </div>
+                          </div>
+
+                          {/* Bottom Overlay */}
+                          <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/90 via-black/50 to-transparent p-3">
+                            <div className="flex items-end justify-between gap-3">
+                              <div>
+                                <p className="text-xs font-semibold text-white">
+                                  {comic.total_chapters} Chapters
+                                </p>
+
+                                <p className="mt-1 text-[10px] text-zinc-300">
+                                  Updated{" "}
+                                  {new Date(
+                                    comic.published_at,
+                                  ).toLocaleDateString()}
+                                </p>
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </div>
 
-                    {/* Info */}
-                    <div className="mt-3">
-                      <div className="relative">
-                        {/* Title */}
-                        <h3 className="line-clamp-2 min-h-10 text-sm font-medium leading-5 text-zinc-100 transition group-hover:text-white">
-                          {title}
-                        </h3>
+                        {/* Info */}
+                        <div className="mt-3">
+                          <div className="relative">
+                            {/* Title */}
+                            <h3 className="line-clamp-2 min-h-10 text-sm font-medium leading-5 text-zinc-100 transition group-hover:text-white">
+                              {comic.title}
+                            </h3>
 
-                        {/* Hover Tooltip */}
-                        <div className="pointer-events-none absolute left-0 top-full z-20 mt-2 w-max max-w-65 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs leading-5 text-white opacity-0 shadow-2xl transition duration-200 group-hover:opacity-100">
-                          {title}
+                            {/* Hover Tooltip */}
+                            <div className="pointer-events-none absolute left-0 top-full z-20 mt-2 w-max max-w-65 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs leading-5 text-white opacity-0 shadow-2xl transition duration-200 group-hover:opacity-100">
+                              {comic.title}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
+                      </Link>
+                    );
+                  })}
             </div>
+
+            {/* Empty */}
+            {!loading && comics.length === 0 && (
+              <div className="flex h-80 items-center justify-center">
+                <p className="text-sm text-zinc-500">No comics available.</p>
+              </div>
+            )}
 
             {/* Pagination */}
             <div className="mt-10 flex items-center justify-center gap-2">
               {/* Prev */}
-              <button className="rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm text-zinc-400 transition hover:border-indigo-500 hover:text-white disabled:opacity-40">
+              <button
+                disabled={page === 1}
+                onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                className="rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm text-zinc-400 transition hover:border-indigo-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+              >
                 Prev
               </button>
 
+              {/* First Page */}
+              {!visiblePages.includes(1) && (
+                <>
+                  <button
+                    onClick={() => setPage(1)}
+                    className="h-10 w-10 rounded-xl border border-zinc-800 bg-zinc-900/60 text-sm text-zinc-400 transition hover:border-indigo-500 hover:text-white"
+                  >
+                    1
+                  </button>
+
+                  <span className="px-1 text-zinc-500">...</span>
+                </>
+              )}
+
               {/* Pages */}
-              <button className="h-10 w-10 rounded-xl bg-indigo-500 text-sm font-semibold text-white">
-                1
-              </button>
+              {visiblePages.map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setPage(p)}
+                  className={`h-10 min-w-10 rounded-xl px-4 text-sm font-semibold transition ${
+                    page === p
+                      ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/20"
+                      : "border border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:border-indigo-500 hover:text-white"
+                  }`}
+                >
+                  {p}
+                </button>
+              ))}
 
-              <button className="h-10 w-10 rounded-xl border border-zinc-800 bg-zinc-900/60 text-sm text-zinc-400 transition hover:border-indigo-500 hover:text-white">
-                2
-              </button>
+              {/* Last Page */}
+              {!visiblePages.includes(pagination.total_pages) &&
+                pagination.total_pages > 1 && (
+                  <>
+                    <span className="px-1 text-zinc-500">...</span>
 
-              <button className="h-10 w-10 rounded-xl border border-zinc-800 bg-zinc-900/60 text-sm text-zinc-400 transition hover:border-indigo-500 hover:text-white">
-                3
-              </button>
-
-              {/* Ellipsis */}
-              <span className="px-2 text-zinc-500">...</span>
-
-              <button className="h-10 w-10 rounded-xl border border-zinc-800 bg-zinc-900/60 text-sm text-zinc-400 transition hover:border-indigo-500 hover:text-white">
-                10
-              </button>
+                    <button
+                      onClick={() => setPage(pagination.total_pages)}
+                      className="h-10 w-10 rounded-xl border border-zinc-800 bg-zinc-900/60 text-sm text-zinc-400 transition hover:border-indigo-500 hover:text-white"
+                    >
+                      {pagination.total_pages}
+                    </button>
+                  </>
+                )}
 
               {/* Next */}
-              <button className="rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm text-zinc-400 transition hover:border-indigo-500 hover:text-white">
+              <button
+                disabled={!pagination.has_next}
+                onClick={() =>
+                  setPage((prev) => Math.min(prev + 1, pagination.total_pages))
+                }
+                className="rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm text-zinc-400 transition hover:border-indigo-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+              >
                 Next
               </button>
             </div>

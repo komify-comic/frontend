@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -7,8 +9,41 @@ import {
   ShieldAlert,
   Trash2,
 } from "lucide-react";
+import { useState } from "react";
 
 export default function SettingsPage() {
+  const [isResetting, setIsResetting] = useState(false);
+  const handleResetDatabase = async () => {
+    const confirmed = window.confirm(
+      "Are you sure you want to reset all database data?\n\nThis action cannot be undone.",
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setIsResetting(true);
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/system/reset-all-data`,
+        {
+          method: "POST",
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to reset database");
+      }
+
+      alert("Database reset successfully.");
+    } catch (error) {
+      console.error(error);
+
+      alert("Failed to reset database.");
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
       {/* Header */}
@@ -77,10 +112,20 @@ export default function SettingsPage() {
               </div>
 
               {/* Action */}
-              <button className="group flex items-center justify-center gap-2 rounded-2xl border border-red-500/20 bg-red-500/10 px-6 py-4 text-sm font-semibold text-red-300 transition hover:border-red-500/40 hover:bg-red-500/20 hover:text-red-200">
-                <Trash2 className="h-4 w-4 transition group-hover:scale-110" />
+              <button
+                onClick={handleResetDatabase}
+                disabled={isResetting}
+                className="group flex items-center justify-center gap-2 rounded-2xl border border-red-500/20 bg-red-500/10 px-6 py-4 text-sm font-semibold text-red-300 transition hover:border-red-500/40 hover:bg-red-500/20 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Trash2
+                  className={`h-4 w-4 transition ${
+                    isResetting ? "animate-spin" : "group-hover:scale-110"
+                  }`}
+                />
 
-                <span>Reset Database</span>
+                <span>
+                  {isResetting ? "Resetting Database..." : "Reset Database"}
+                </span>
               </button>
             </div>
           </section>
