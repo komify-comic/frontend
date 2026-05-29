@@ -488,9 +488,11 @@ export default function ComicDetailPage() {
               <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 <div className="flex items-center gap-3 rounded-2xl border border-white/5 bg-white/3 px-4 py-3 backdrop-blur-xl">
                   <Clock3 className="h-4 w-4 text-indigo-400" />
-
                   <span className="text-sm text-zinc-300">
-                    {comic.total_chapters} Chapters
+                    Created{" "}
+                    {comic.created_at
+                      ? new Date(comic.created_at).toLocaleDateString()
+                      : "Unknown"}
                   </span>
                 </div>
 
