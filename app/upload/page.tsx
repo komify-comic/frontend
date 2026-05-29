@@ -35,18 +35,227 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { getCroppedImg } from "@/lib/cropImage";
 
+type Status = {
+  id: string;
+  name: string;
+};
+type Censorship = {
+  id: string;
+  name: string;
+};
+type Language = {
+  code: string;
+  name: string;
+};
 type Chapter = {
   id: string;
   main: number;
   sub: number;
   title: string;
-  censored: string;
+  censorship_id: string;
   language: string;
   pages: string[];
 };
 
 export default function UploadPage() {
+  const [statuses, setStatuses] = useState<Status[]>([]);
+  const [censorships, setCensorships] = useState<Censorship[]>([]);
+  const [languages, setLanguages] = useState<Language[]>([]);
   const [activeTemplate, setActiveTemplate] = useState<string>("doujinshi");
+
+  useEffect(() => {
+    const fetchCommonData = async () => {
+      try {
+        const baseUrl =
+          process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
+        const [statusesRes, censorshipsRes, languagesRes] = await Promise.all([
+          fetch(`${baseUrl}/system/statuses`),
+          fetch(`${baseUrl}/system/censorships`),
+          fetch(`${baseUrl}/system/languages`),
+        ]);
+
+        const statusesData = await statusesRes.json();
+        const censorshipsData = await censorshipsRes.json();
+        const languagesData = await languagesRes.json();
+        setStatuses(statusesData);
+        setCensorships(censorshipsData);
+        setLanguages(languagesData);
+      } catch (error) {
+        console.error("Failed to fetch common data:", error);
+      }
+    };
+    fetchCommonData();
+  }, []);
+
+  const [isPublishing, setIsPublishing] = useState(false);
+  const handlePublish = async () => {
+    try {
+      setIsPublishing(true);
+
+      // =========================
+      // VALIDASI DASAR
+      // =========================
+      if (!metadata.title?.trim()) {
+        alert("Title is required");
+        return;
+      }
+      if (!coverImage) {
+        alert("Cover is required");
+        return;
+      }
+      if (!sortedChapters.length) {
+        alert("At least 1 chapter is required");
+        return;
+      }
+
+      // =========================
+      // INIT FORMDATA
+      // =========================
+      const formData = new FormData();
+
+      // =========================
+      // CLEAN METADATA
+      // =========================
+      const cleanMetadata = {
+        ...metadata,
+      } as Partial<typeof metadata>;
+
+      // TEMPLATE RULES
+      if (activeTemplate === "manhwa") {
+        delete cleanMetadata.groups;
+      }
+      if (activeTemplate === "doujinshi" || activeTemplate === "manga") {
+        delete cleanMetadata.authors;
+      }
+
+      // =========================
+      // CLEAN EMPTY STRING
+      // =========================
+      Object.keys(cleanMetadata).forEach((key) => {
+        const value = cleanMetadata[key as keyof typeof cleanMetadata];
+        if (value === undefined || value === null || value === "") {
+          delete cleanMetadata[key as keyof typeof cleanMetadata];
+        }
+      });
+
+      // =========================
+      // BUILD DOCUMENT
+      // =========================
+      const textData = {
+        template: activeTemplate,
+        status:
+          (document.querySelector("select") as HTMLSelectElement)?.value ||
+          "ongoing",
+        metadata: cleanMetadata,
+        chapters: sortedChapters.map((ch) => ({
+          id: ch.id,
+          main: Number(ch.main),
+          sub: Number(ch.sub || 0),
+          title: ch.title?.trim() || null,
+          censorship_id: ch.censorship_id,
+          language: ch.language,
+          pagesCount: ch.pages.length,
+        })),
+      };
+
+      // =========================
+      // DOCUMENT JSON
+      // =========================
+      formData.append("document", JSON.stringify(textData));
+
+      // =========================
+      // COVER
+      // =========================
+      if (typeof coverImage === "string") {
+        const response = await fetch(coverImage);
+        const coverBlob = await response.blob();
+        formData.append("cover", coverBlob, "cover.jpg");
+      } else {
+        formData.append("cover", coverImage);
+      }
+
+      // =========================
+      // PAGES
+      // =========================
+      for (const chapter of sortedChapters) {
+        if (!chapter.pages.length) {
+          alert(`Chapter ${chapter.main} has no pages`);
+          return;
+        }
+
+        for (let i = 0; i < chapter.pages.length; i++) {
+          const pageSrc = chapter.pages[i];
+          // blob url
+          if (typeof pageSrc === "string" && pageSrc.startsWith("blob:")) {
+            const response = await fetch(pageSrc);
+            const pageBlob = await response.blob();
+            formData.append(
+              `pages_${chapter.id}`,
+              pageBlob,
+              `page_${i + 1}.jpg`,
+            );
+            continue;
+          }
+          // file object
+          formData.append(`pages_${chapter.id}`, pageSrc);
+        }
+      }
+
+      // =========================
+      // DEBUG
+      // =========================
+      console.log("=== [DEBUG] FORM DATA UNTUK BACKEND ===");
+      console.log("1. Teks Data (JSON):", textData);
+      console.log("2. Properti FormData siap kirim:");
+      for (const pair of formData.entries()) {
+        if (pair[1] instanceof Blob) {
+          console.log(` - ${pair[0]}: [File] ${pair[1].size} bytes`);
+        } else {
+          console.log(` - ${pair[0]}:`, pair[1]);
+        }
+      }
+      console.log("=======================================");
+
+      // =========================
+      // REQUEST
+      // =========================
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/comics/publish`,
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
+
+      // =========================
+      // HANDLE ERROR HTTP
+      // =========================
+      if (!response.ok) {
+        let errorMessage = "Upload failed";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorData.error || errorMessage;
+        } catch {}
+        throw new Error(errorMessage);
+      }
+
+      // =========================
+      // RESULT
+      // =========================
+      const result = await response.json();
+      console.log(result);
+      alert("Comic published successfully");
+      setTimeout(() => {
+        window.location.href = "/upload";
+      }, 1000);
+      return result;
+    } catch (error: any) {
+      console.error("Upload failed:", error);
+      alert(error?.message || "Failed to publish comic");
+    } finally {
+      setIsPublishing(false);
+    }
+  };
 
   // FIX PARAGRAPH MODAL STATE
   const [fixModal, setFixModal] = useState<{
@@ -169,7 +378,7 @@ export default function UploadPage() {
       main: 1,
       sub: 0,
       title: "",
-      censored: "censored",
+      censorship_id: "ea0ab733-43c7-4f73-ad3a-a8451ade7642",
       language: "en",
       pages: [],
     },
@@ -185,7 +394,6 @@ export default function UploadPage() {
       const sortedPrev = getSortedList(prev);
       const lastMain =
         sortedPrev.length > 0 ? sortedPrev[sortedPrev.length - 1].main : 0;
-
       return [
         ...prev,
         {
@@ -193,7 +401,7 @@ export default function UploadPage() {
           main: lastMain + 1,
           sub: 0,
           title: "",
-          censored: "censored",
+          censorship_id: "ea0ab733-43c7-4f73-ad3a-a8451ade7642",
           language: "en",
           pages: [],
         },
@@ -366,17 +574,6 @@ export default function UploadPage() {
             <ArrowLeft className="h-3.5 w-3.5 transition duration-200 group-hover:-translate-x-0.5" />
             Back
           </Link>
-
-          {/* Sleek ID Badge dengan Efek Pulse Glow */}
-          <div className="flex items-center gap-2 rounded-xl border border-indigo-500/10 bg-indigo-500/5 px-3 py-1.5 shadow-xs shadow-indigo-500/2">
-            <div className="relative flex h-1.5 w-1.5 shrink-0">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-indigo-500"></span>
-            </div>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-400/90">
-              Comic ID <span className="text-zinc-200 ml-0.5">#1</span>
-            </span>
-          </div>
         </div>
 
         {/* Center - Template Selector */}
@@ -405,7 +602,11 @@ export default function UploadPage() {
         </div>
 
         {/* Right - Publish Comic Button */}
-        <button className="group flex items-center gap-2 rounded-xl bg-indigo-500 px-5 py-2 text-xs font-semibold text-white transition duration-200 hover:bg-indigo-400 hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/30">
+        <button
+          onClick={handlePublish}
+          disabled={isPublishing}
+          className="group flex items-center gap-2 rounded-xl bg-indigo-500 px-5 py-2 text-xs font-semibold text-white transition duration-200 hover:bg-indigo-400 hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/30"
+        >
           <Upload className="h-3.5 w-3.5 transition duration-200 group-hover:-translate-y-0.5" />
           Publish Comic
         </button>
@@ -423,13 +624,12 @@ export default function UploadPage() {
             </h2>
 
             {/* Status */}
-            <select
-              className="rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-2 text-xs font-semibold text-zinc-300 outline-none transition focus:border-indigo-500"
-              defaultValue="ongoing"
-            >
-              <option value="ongoing">Ongoing</option>
-              <option value="completed">Not Completed</option>
-              <option value="hiatus">Completed</option>
+            <select className="rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-2 text-xs font-semibold text-zinc-300 outline-none transition focus:border-indigo-500">
+              {statuses.map((status) => (
+                <option key={status.id} value={status.id}>
+                  {status.name}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -733,18 +933,21 @@ export default function UploadPage() {
 
                           {/* censored/Uncesored */}
                           <select
-                            value={chapter.censored}
+                            value={chapter.censorship_id}
                             onChange={(e) =>
                               updateChapter(
                                 chapter.id,
-                                "censored",
+                                "censorship_id",
                                 e.target.value,
                               )
                             }
                             className="md:col-span-1 w-full rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 outline-none transition focus:border-indigo-500"
                           >
-                            <option value="censored">Censored</option>
-                            <option value="uncensored">Uncensored</option>
+                            {censorships.map((censorship) => (
+                              <option key={censorship.id} value={censorship.id}>
+                                {censorship.name}
+                              </option>
+                            ))}
                           </select>
 
                           {/* Language */}
@@ -759,10 +962,11 @@ export default function UploadPage() {
                             }
                             className="md:col-span-1 w-full rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 outline-none transition focus:border-indigo-500"
                           >
-                            <option value="en">English</option>
-                            <option value="jp">Japanese</option>
-                            <option value="kr">Korean</option>
-                            <option value="id">Indonesian</option>
+                            {languages.map((language) => (
+                              <option key={language.code} value={language.code}>
+                                {language.name}
+                              </option>
+                            ))}
                           </select>
 
                           {/* Upload */}
