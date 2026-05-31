@@ -5,7 +5,13 @@ import Link from "next/link";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 
-import { ArrowLeft, ChevronLeft, ChevronRight, BookOpen } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  BookOpen,
+  Pencil,
+} from "lucide-react";
 
 type ChapterPage = {
   id: string;
@@ -47,7 +53,6 @@ export default function ChapterReaderPage() {
   const chapterId = params.chapter as string;
 
   const [chapter, setChapter] = useState<ChapterDetail | null>(null);
-
   const [loading, setLoading] = useState(true);
 
   const baseUrl =
@@ -142,6 +147,14 @@ export default function ChapterReaderPage() {
               <ChevronRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
             </button>
           </div>
+          {/* tambahkan tombol link ke halaman edit chapternya */}
+          <Link
+            href={`/comic/${slug}/chapter/${chapterId}/edit`}
+            className="flex items-center gap-2 rounded-2xl bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-400"
+          >
+            <Pencil className="h-4 w-4" />
+            Edit Chapter
+          </Link>
         </div>
       </header>
 

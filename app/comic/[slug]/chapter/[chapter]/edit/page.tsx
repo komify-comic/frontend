@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   DndContext,
   closestCenter,
@@ -24,19 +25,9 @@ import {
   Trash2,
   GripVertical,
   Plus,
+  RefreshCcw,
 } from "lucide-react";
 import { CSS } from "@dnd-kit/utilities";
-
-type ChapterPage = {
-  id: string;
-  width: number | null;
-  height: number | null;
-  filename: string;
-  filepath: string;
-  filesize: number | null;
-  created_at: string;
-  page_number: number;
-};
 
 type ChapterResponse = {
   comic: {
@@ -76,8 +67,42 @@ type ChapterResponse = {
     prev_chapter: string | null;
   };
 };
+type ChapterPage = {
+  id: string;
+  width: number | null;
+  height: number | null;
+  filename: string;
+  filepath: string;
+  filesize: number | null;
+  created_at: string;
+  page_number: number;
+};
+type EditablePage = {
+  id: string;
+  page: number;
+  filename?: string;
+  url?: string;
+  file?: File;
+  isExisting?: boolean;
+  isReplaced?: boolean;
+};
+type Censorship = {
+  id: string;
+  name: string;
+};
+type Language = {
+  code: string;
+  name: string;
+};
+
+type SortablePageCardProps = {
+  page: EditablePage;
+  onDelete: (id: string) => void;
+  onReplace: (id: string, file: File) => void;
+};
 
 export default function EditChapterPage() {
+  const router = useRouter();
   const params = useParams();
 
   const slug = params.slug as string;
@@ -87,6 +112,168 @@ export default function EditChapterPage() {
     process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
 
   const [chapterData, setChapterData] = useState<ChapterResponse | null>(null);
+  const [censorships, setCensorships] = useState<Censorship[]>([]);
+  const [languages, setLanguages] = useState<Language[]>([]);
+  const [chapterMetadata, setChapterMetadata] = useState({
+    title: "",
+    censorship_id: "",
+    language_code: "",
+  });
+  useEffect(() => {
+    const fetchCommonData = async () => {
+      try {
+        const [censorshipsRes, languagesRes] = await Promise.all([
+          fetch(`${baseUrl}/system/censorships`),
+          fetch(`${baseUrl}/system/languages`),
+        ]);
+
+        if (!censorshipsRes.ok || !languagesRes.ok) {
+          throw new Error("Failed to fetch common data");
+        }
+
+        const censorshipsData: Censorship[] = await censorshipsRes.json();
+        const languagesData: Language[] = await languagesRes.json();
+
+        setCensorships(censorshipsData);
+        setLanguages(languagesData);
+      } catch (error) {
+        console.error("Failed to fetch common data:", error);
+      }
+    };
+
+    fetchCommonData();
+  }, [baseUrl]);
+
+  const [deletedPages, setDeletedPages] = useState<string[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const handleSave = async () => {
+    try {
+      setIsSaving(true);
+      const baseUrl =
+        process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
+
+      if (!chapterMetadata.censorship_id) {
+        alert("Please select censorship");
+        return;
+      }
+
+      if (!chapterMetadata.language_code) {
+        alert("Please select language");
+        return;
+      }
+
+      const payload = {
+        // chapter_id: chapterId,
+        title: chapterMetadata.title,
+        censorship_id: chapterMetadata.censorship_id,
+        language_code: chapterMetadata.language_code,
+        pages: pages.map((page, index) => ({
+          id: page.isExisting ? page.id : null,
+          temp_id: !page.isExisting || page.isReplaced ? page.id : null,
+          page_number: index + 1,
+          action: page.isExisting
+            ? page.isReplaced
+              ? "replace"
+              : "keep"
+            : "create",
+          filename: page.filename ?? null,
+        })),
+        deleted_pages: deletedPages,
+      };
+
+      // Validation: ensure deleted_pages only contains pages that actually exist in database
+      const currentPageIds = pages.filter((p) => p.isExisting).map((p) => p.id);
+      const validDeletedPages = deletedPages.filter(
+        (id) => !currentPageIds.includes(id),
+      );
+
+      if (validDeletedPages.length !== deletedPages.length) {
+        console.warn(
+          "Filtered out invalid deleted pages:",
+          deletedPages.filter((id) => !validDeletedPages.includes(id)),
+        );
+        payload.deleted_pages = validDeletedPages;
+      }
+
+      if (pages.length === 0) {
+        alert("Chapter must contain at least 1 page");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("document", JSON.stringify(payload));
+      pages.forEach((page) => {
+        const shouldUpload =
+          (!page.isExisting && page.file) ||
+          (page.isExisting && page.isReplaced && page.file);
+
+        if (shouldUpload) {
+          formData.append(`files_${page.id}`, page.file!);
+        }
+      });
+
+      const invalidReplace = pages.find(
+        (page) => page.isExisting && page.isReplaced && !page.file,
+      );
+
+      if (invalidReplace) {
+        alert("Some replaced pages have no file selected");
+        return;
+      }
+
+      console.log("====================================");
+      console.log("UPDATE CHAPTER - CURRENT STATE");
+      console.log("Pages array:", pages);
+      console.log("Deleted Pages:", deletedPages);
+      console.log("====================================");
+      console.log("UPDATE CHAPTER PAYLOAD");
+      console.log("Payload pages:", payload.pages);
+      console.log("Payload deleted_pages:", payload.deleted_pages);
+      console.log(payload);
+      console.log("====================================");
+
+      const response = await fetch(`${baseUrl}/chapters/${chapterId}`, {
+        method: "PUT",
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        const message = Array.isArray(result.message)
+          ? result.message.join(", ")
+          : result.message;
+
+        throw new Error(message || "Failed to update chapter");
+      }
+
+      alert("Chapter updated successfully");
+      router.refresh();
+    } catch (error) {
+      console.error(error);
+
+      alert(
+        error instanceof Error ? error.message : "Failed to update chapter",
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  const handleReplacePage = (pageId: string, file: File) => {
+    setPages((prev) =>
+      prev.map((page) =>
+        page.id === pageId
+          ? {
+              ...page,
+              file,
+              filename: file.name,
+              url: URL.createObjectURL(file),
+              isReplaced: true,
+            }
+          : page,
+      ),
+    );
+  };
 
   // DnD Sensors
   const sensors = useSensors(
@@ -102,6 +289,18 @@ export default function EditChapterPage() {
     setPages((items) => {
       const oldIndex = items.findIndex((i) => i.id === active.id);
       const newIndex = items.findIndex((i) => i.id === over.id);
+
+      // Defensive check: if either index is -1, abort reordering
+      if (oldIndex === -1 || newIndex === -1) {
+        console.warn("Invalid drag indices detected", {
+          oldIndex,
+          newIndex,
+          activeId: active.id,
+          overId: over.id,
+        });
+        return items;
+      }
+
       const reordered = arrayMove(items, oldIndex, newIndex);
       return reordered.map((item, idx) => ({
         ...item,
@@ -111,15 +310,7 @@ export default function EditChapterPage() {
   };
 
   // Pages State
-  const [pages, setPages] = useState<
-    {
-      id: string;
-      page: number;
-      url?: string;
-      file?: File;
-      isExisting?: boolean;
-    }[]
-  >([]);
+  const [pages, setPages] = useState<EditablePage[]>([]);
   const handleAddPages = () => {
     const currentLength = pages.length;
     const newPages = Array.from({ length: 5 }).map((_, idx) => ({
@@ -136,20 +327,33 @@ export default function EditChapterPage() {
       id: crypto.randomUUID(),
       page: currentLength + idx + 1,
       file,
+      filename: file.name,
       url: URL.createObjectURL(file),
     }));
     setPages((prev) => [...prev, ...newPages]);
   };
   const handleClearPages = () => {
+    const existingIds = pages.filter((p) => p.isExisting).map((p) => p.id);
+    setDeletedPages((prev) => [...prev, ...existingIds]);
     setPages([]);
   };
   const handleDeletePage = (id: string) => {
-    const filtered = pages.filter((page) => page.id !== id);
-    const normalized = filtered.map((page, idx) => ({
-      ...page,
-      page: idx + 1,
-    }));
-    setPages(normalized);
+    setPages((currentPages) => {
+      const page = currentPages.find((x) => x.id === id);
+
+      // Track page for deletion if it's an existing page
+      if (page?.isExisting) {
+        setDeletedPages((prev) => (prev.includes(id) ? prev : [...prev, id]));
+      }
+
+      const filtered = currentPages.filter((page) => page.id !== id);
+      const normalized = filtered.map((page, idx) => ({
+        ...page,
+        page: idx + 1,
+      }));
+
+      return normalized;
+    });
   };
   const inputId = "chapter-pages-upload";
 
@@ -168,18 +372,22 @@ export default function EditChapterPage() {
         }
 
         const data: ChapterResponse = await response.json();
-
         setChapterData(data);
+        setChapterMetadata({
+          title: data.chapter.title || "",
+          censorship_id: data.chapter.censorship?.id || "",
+          language_code: data.chapter.language?.code || "",
+        });
 
         const mappedPages = data.pages
           .sort((a, b) => a.page_number - b.page_number)
           .map((page) => ({
             id: page.id,
             page: page.page_number,
+            filename: page.filename,
             url: `${baseUrl}${page.filepath}`,
             isExisting: true,
           }));
-
         setPages(mappedPages);
       } catch (error) {
         console.error(error);
@@ -213,13 +421,8 @@ export default function EditChapterPage() {
               <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
                 Edit Chapter
               </p>
-
-              <h1 className="mt-1 text-2xl font-black text-white">
-                Chapter {chapterData?.chapter.chapter_number || "-"}
-              </h1>
             </div>
           </div>
-
           {/* ================= CENTER ================= */}
           {/* CENTER */}
           <div className="flex justify-center">
@@ -227,13 +430,11 @@ export default function EditChapterPage() {
               {/* Comic ID */}
               <div className="flex items-center gap-2">
                 <div className="h-2 w-2 rounded-full bg-indigo-400" />
-
                 <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
                   Comic ID
                 </span>
-
                 <span className="font-mono text-sm font-bold text-white">
-                  {slug}
+                  {chapterData?.comic.legacy_id || "-"}
                 </span>
               </div>
 
@@ -263,9 +464,13 @@ export default function EditChapterPage() {
               </button>
             </Link>
 
-            <button className="flex items-center gap-2 rounded-2xl bg-indigo-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-400">
+            <button
+              onClick={handleSave}
+              disabled={isSaving}
+              className="flex items-center gap-2 rounded-2xl bg-indigo-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-400"
+            >
               <Save className="h-4 w-4" />
-              Save Changes
+              {isSaving ? "Saving..." : "Save"}
             </button>
           </div>
         </div>
@@ -289,27 +494,62 @@ export default function EditChapterPage() {
                 <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
                   Chapter Title
                 </label>
-
                 <input
                   type="text"
-                  value={chapterData?.chapter.title || ""}
+                  value={chapterMetadata.title}
+                  onChange={(e) =>
+                    setChapterMetadata((prev) => ({
+                      ...prev,
+                      title: e.target.value,
+                    }))
+                  }
                   className="w-full rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-white outline-none transition focus:border-indigo-500"
                 />
               </div>
 
-              {/* Status */}
+              {/* Censorship */}
               <div>
                 <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
-                  Content
+                  Censorship
                 </label>
-
                 <select
-                  value={chapterData?.chapter.censorship?.name || ""}
+                  value={chapterMetadata.censorship_id}
+                  onChange={(e) =>
+                    setChapterMetadata((prev) => ({
+                      ...prev,
+                      censorship_id: e.target.value,
+                    }))
+                  }
                   className="w-full rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-white outline-none transition focus:border-indigo-500"
                 >
-                  <option value={chapterData?.chapter.censorship?.name}>
-                    {chapterData?.chapter.censorship?.name}
-                  </option>
+                  {censorships.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Language */}
+              <div>
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                  Language
+                </label>
+                <select
+                  value={chapterMetadata.language_code}
+                  onChange={(e) =>
+                    setChapterMetadata((prev) => ({
+                      ...prev,
+                      language_code: e.target.value,
+                    }))
+                  }
+                  className="w-full rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-white outline-none transition focus:border-indigo-500"
+                >
+                  {languages.map((item) => (
+                    <option key={item.code} value={item.code}>
+                      {item.name}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -402,6 +642,7 @@ export default function EditChapterPage() {
                         key={page.id}
                         page={page}
                         onDelete={handleDeletePage}
+                        onReplace={handleReplacePage}
                       />
                     ))}
                   </div>
@@ -419,14 +660,8 @@ export default function EditChapterPage() {
 const SortablePageCard = React.memo(function SortablePageCard({
   page,
   onDelete,
-}: {
-  page: {
-    id: string;
-    page: number;
-    url?: string;
-  };
-  onDelete: (id: string) => void;
-}) {
+  onReplace,
+}: SortablePageCardProps) {
   const {
     attributes,
     listeners,
@@ -484,11 +719,26 @@ const SortablePageCard = React.memo(function SortablePageCard({
         </span>
       </div>
 
+      {page.isReplaced && (
+        <div className="absolute right-2 top-2">
+          <span
+            className="
+              rounded-lg
+              bg-amber-500/90
+              px-2 py-1
+              text-[10px]
+              font-bold
+              text-white
+            "
+          >
+            REPLACED
+          </span>
+        </div>
+      )}
+
       {/* Overlay */}
       <div
-        className={`
-          absolute inset-0 flex items-end justify-between p-3
-          transition-opacity duration-150
+        className={`absolute inset-0 flex items-end justify-between gap-2 p-3 transition-opacity duration-150
           ${
             isDragging
               ? "bg-black/20 opacity-100"
@@ -510,6 +760,36 @@ const SortablePageCard = React.memo(function SortablePageCard({
         >
           <GripVertical className="h-4 w-4" />
         </button>
+
+        <label
+          className="
+            cursor-pointer
+            rounded-xl
+            bg-blue-500/90
+            p-2
+            text-white
+            backdrop-blur
+            transition
+            hover:bg-blue-600
+          "
+        >
+          <RefreshCcw className="h-4 w-4" />
+
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+
+              if (!file) return;
+
+              onReplace(page.id, file);
+
+              e.target.value = "";
+            }}
+          />
+        </label>
 
         {/* Delete */}
         <button
