@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState, memo } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useRef, useState, memo, useEffect } from "react";
 import {
   DndContext,
   PointerSensor,
@@ -29,15 +30,104 @@ import {
 type ChapterPage = {
   id: string;
   page: number;
-  url?: string;
+  file: File;
+  previewUrl: string;
+};
+
+type Language = {
+  code: string;
+  name: string;
+};
+
+type Censorship = {
+  id: string;
+  name: string;
+};
+
+type ChapterListResponse = {
+  data: {
+    id: string;
+    title: string;
+    chapter_number: string;
+
+    language: {
+      code: string;
+      name: string;
+    };
+
+    censorship: {
+      id: string;
+      name: string;
+    };
+
+    total_pages: number;
+    published_at: string | null;
+  }[];
+
+  comic_id: string;
+  total_chapters: number;
 };
 
 export default function CreateChapterPage() {
+  const router = useRouter();
+  const params = useParams();
+  const slug = params.slug as string;
+  const baseUrl =
+    process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
+
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [pages, setPages] = useState<ChapterPage[]>([]);
-  const [language, setLanguage] = useState("English");
   const [chapterTitle, setChapterTitle] = useState("");
-  const [contentType, setContentType] = useState("uncensored");
+  const [languages, setLanguages] = useState<Language[]>([]);
+  const [censorships, setCensorships] = useState<Censorship[]>([]);
+  const [language, setLanguage] = useState("");
+  const [contentType, setContentType] = useState("");
+  const [nextChapterNumber, setNextChapterNumber] = useState("");
+
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      try {
+        const [chaptersRes, languagesRes, censorshipsRes] = await Promise.all([
+          fetch(`${baseUrl}/comics/${slug}/chapters`, {
+            cache: "no-store",
+          }),
+          fetch(`${baseUrl}/system/languages`),
+          fetch(`${baseUrl}/system/censorships`),
+        ]);
+
+        if (!chaptersRes.ok || !languagesRes.ok || !censorshipsRes.ok) {
+          throw new Error("Failed to fetch initial data");
+        }
+
+        const chaptersData: ChapterListResponse = await chaptersRes.json();
+        const languagesData: Language[] = await languagesRes.json();
+        const censorshipsData: Censorship[] = await censorshipsRes.json();
+        setLanguages(languagesData);
+        setCensorships(censorshipsData);
+
+        if (languagesData.length > 0) {
+          setLanguage(languagesData[0].code);
+        }
+
+        if (censorshipsData.length > 0) {
+          setContentType(censorshipsData[0].id);
+        }
+
+        const nextNumber = String(chaptersData.total_chapters + 1).padStart(
+          3,
+          "0",
+        );
+
+        setNextChapterNumber(nextNumber);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    if (slug) {
+      fetchInitialData();
+    }
+  }, [slug, baseUrl]);
 
   /* ================= DND ================= */
   const sensors = useSensors(
@@ -77,7 +167,8 @@ export default function CreateChapterPage() {
     const mapped = files.map((file, idx) => ({
       id: crypto.randomUUID(),
       page: pages.length + idx + 1,
-      url: URL.createObjectURL(file),
+      file,
+      previewUrl: URL.createObjectURL(file),
     }));
 
     setPages((prev) => [...prev, ...mapped]);
@@ -95,6 +186,54 @@ export default function CreateChapterPage() {
     const filtered = pages.filter((page) => page.id !== id);
 
     setPages(normalizePages(filtered));
+  };
+
+  const handleCreateChapter = async () => {
+    try {
+      if (pages.length === 0) {
+        alert("Please upload at least one page");
+        return;
+      }
+
+      const payload = {
+        comic_id: slug,
+        title: chapterTitle.trim() || `Chapter ${nextChapterNumber}`,
+        chapter_number: nextChapterNumber,
+        language_code: language,
+        censorship_id: contentType,
+        pages: pages.map((page, index) => ({
+          temp_id: page.id,
+          page_number: index + 1,
+          filename: page.file.name,
+        })),
+      };
+
+      const formData = new FormData();
+      formData.append("metadata", JSON.stringify(payload));
+      pages.forEach((page) => {
+        formData.append(page.id, page.file, page.file.name);
+      });
+
+      const response = await fetch(`${baseUrl}/comics/${slug}/chapters`, {
+        method: "POST",
+        body: formData,
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || "Failed to create chapter");
+      }
+
+      alert("Chapter created successfully");
+      router.push(`/comic/${slug}`);
+    } catch (error) {
+      console.error(error);
+
+      if (error instanceof Error) {
+        alert(error.message);
+      } else {
+        alert("Failed to create chapter");
+      }
+    }
   };
 
   return (
@@ -123,7 +262,7 @@ export default function CreateChapterPage() {
                 </span>
 
                 <span className="font-mono text-sm font-bold text-white">
-                  #1
+                  #{slug}
                 </span>
               </div>
 
@@ -139,7 +278,7 @@ export default function CreateChapterPage() {
                 </span>
 
                 <span className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-xs font-bold text-amber-300">
-                  #120
+                  #{nextChapterNumber}
                 </span>
               </div>
             </div>
@@ -147,13 +286,16 @@ export default function CreateChapterPage() {
 
           {/* RIGHT */}
           <div className="flex items-center justify-end gap-3">
-            <Link href="/comic/solo-leveling">
+            <Link href={`/comic/${slug}`}>
               <button className="rounded-2xl border border-zinc-800 bg-zinc-900 px-5 py-3 text-sm font-semibold text-zinc-300 transition hover:bg-zinc-800 hover:text-white">
                 Cancel
               </button>
             </Link>
 
-            <button className="flex items-center gap-2 rounded-2xl bg-indigo-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-400">
+            <button
+              onClick={handleCreateChapter}
+              className="flex items-center gap-2 rounded-2xl bg-indigo-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-400"
+            >
               <Save className="h-4 w-4" />
               Create Chapter
             </button>
@@ -182,9 +324,27 @@ export default function CreateChapterPage() {
                   type="text"
                   value={chapterTitle}
                   onChange={(e) => setChapterTitle(e.target.value)}
-                  placeholder="Enter chapter title..."
+                  placeholder={`Chapter ${nextChapterNumber}`}
                   className="w-full rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-white outline-none transition focus:border-indigo-500"
                 />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                  Censorship
+                </label>
+
+                <select
+                  value={contentType}
+                  onChange={(e) => setContentType(e.target.value)}
+                  className="w-full rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 outline-none transition focus:border-indigo-500"
+                >
+                  {censorships.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
@@ -195,26 +355,13 @@ export default function CreateChapterPage() {
                 <select
                   value={language}
                   onChange={(e) => setLanguage(e.target.value)}
-                  className="w-full rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-white outline-none transition focus:border-indigo-500"
+                  className="w-full rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 outline-none transition focus:border-indigo-500"
                 >
-                  <option value="en">English</option>
-                  <option value="es">Spanish</option>
-                  <option value="fr">French</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
-                  Content
-                </label>
-
-                <select
-                  value={contentType}
-                  onChange={(e) => setContentType(e.target.value)}
-                  className="w-full rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-white outline-none transition focus:border-indigo-500"
-                >
-                  <option value="uncensored">Uncensored</option>
-                  <option value="censored">Censored</option>
+                  {languages.map((lang) => (
+                    <option key={lang.code} value={lang.code}>
+                      {lang.name}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -271,14 +418,6 @@ export default function CreateChapterPage() {
               <h3 className="text-lg font-bold text-white">
                 No Pages Uploaded
               </h3>
-
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="mt-6 flex items-center gap-2 rounded-2xl bg-indigo-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-400"
-              >
-                <Plus className="h-4 w-4" />
-                Add Pages
-              </button>
             </div>
           ) : (
             <div className="p-5">
@@ -347,9 +486,9 @@ const SortablePageCard = memo(function SortablePageCard({
     >
       {/* Image */}
       <div className="aspect-3/4 overflow-hidden bg-zinc-800">
-        {page.url ? (
+        {page.previewUrl ? (
           <img
-            src={page.url}
+            src={page.previewUrl}
             alt={`Page ${page.page}`}
             loading="lazy"
             draggable={false}

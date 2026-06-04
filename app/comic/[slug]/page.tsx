@@ -125,11 +125,9 @@ type ComicChaptersResponse = {
 async function getComicMetadata(id: string) {
   const baseUrl =
     process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
-
   const response = await fetch(`${baseUrl}/comics/${id}/metadata`, {
     cache: "no-store",
   });
-
   if (!response.ok) {
     throw new Error("Failed to fetch comic metadata");
   }
@@ -138,19 +136,15 @@ async function getComicMetadata(id: string) {
 }
 
 export default function ComicDetailPage() {
-  const [isOrderingMode, setIsOrderingMode] = useState(false);
-
   const params = useParams();
 
   const slug = params.slug as string;
-
   const [comic, setComic] = useState<ComicMetadata | null>(null);
-
   const [loadingComic, setLoadingComic] = useState(true);
-
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isOrderingMode, setIsOrderingMode] = useState(false);
   const baseUrl =
     process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
-
   const coverUrl = comic?.cover_path ? `${baseUrl}${comic.cover_path}` : null;
 
   useEffect(() => {
@@ -159,7 +153,6 @@ export default function ComicDetailPage() {
         setLoadingComic(true);
 
         const data = await getComicMetadata(slug);
-
         setComic(data);
       } catch (error) {
         console.error(error);
@@ -175,16 +168,13 @@ export default function ComicDetailPage() {
 
   // Chapters State
   const [chapters, setChapters] = useState<ComicChapter[]>([]);
-
   const [loadingChapters, setLoadingChapters] = useState(true);
   useEffect(() => {
     const fetchChapters = async () => {
       try {
         setLoadingChapters(true);
-
         const baseUrl =
           process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
-
         const response = await fetch(`${baseUrl}/comics/${slug}/chapters`, {
           cache: "no-store",
         });
@@ -194,7 +184,6 @@ export default function ComicDetailPage() {
         }
 
         const result: ComicChaptersResponse = await response.json();
-
         setChapters(result.data || []);
       } catch (error) {
         console.error(error);
@@ -234,11 +223,26 @@ export default function ComicDetailPage() {
     } else {
       document.body.style.overflow = "auto";
     }
-
     return () => {
       document.body.style.overflow = "auto";
     };
   }, [selectedChapter]);
+
+  const CHAPTERS_PER_PAGE = 7;
+  const totalPages = Math.ceil(chapters.length / CHAPTERS_PER_PAGE);
+  const paginatedChapters = chapters.slice(
+    (currentPage - 1) * CHAPTERS_PER_PAGE,
+    currentPage * CHAPTERS_PER_PAGE,
+  );
+  useEffect(() => {
+    const totalPages = Math.max(
+      1,
+      Math.ceil(chapters.length / CHAPTERS_PER_PAGE),
+    );
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [chapters, currentPage]);
 
   if (loadingComic || !comic) {
     return (
@@ -250,14 +254,12 @@ export default function ComicDetailPage() {
 
   return (
     <main className="min-h-screen">
-      {/* Hero */}
       <div className="relative min-h-screen overflow-hidden bg-zinc-950">
         {/* Background */}
         <div className="absolute inset-0 bg-zinc-950" />
 
         {/* Glow Effects */}
         <div className="absolute left-1/2 top-0 h-175 w-175 -translate-x-1/2 rounded-full bg-indigo-500/10 blur-3xl" />
-
         <div className="absolute right-0 top-1/3 h-100 w-100 rounded-full bg-fuchsia-500/5 blur-3xl" />
 
         {/* Overlay */}
@@ -307,8 +309,11 @@ export default function ComicDetailPage() {
           </div>
         </header>
 
-        {/* Hero */}
-        <section className="relative flex min-h-screen items-center px-6 py-6">
+        {/* Metadata */}
+        <section
+          className="relative flex min-h-screen items-center px-6 py-6"
+          id="metadata"
+        >
           <div className="grid w-full items-center gap-8 xl:grid-cols-[300px_1fr]">
             {/* Cover */}
             <div className="mx-auto w-full max-w-75">
@@ -523,7 +528,7 @@ export default function ComicDetailPage() {
       </div>
 
       {/* Chapter Section */}
-      <section className="flex min-h-screen flex-col px-6 py-8">
+      <section className="flex min-h-screen flex-col px-6 py-8" id="chapters">
         {/* Header */}
         <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           {/* Left */}
@@ -603,7 +608,7 @@ export default function ComicDetailPage() {
                   No chapters available
                 </div>
               ) : (
-                chapters.map((chapter) => (
+                paginatedChapters.map((chapter) => (
                   <SortableChapterCard
                     key={chapter.id}
                     chapter={chapter}
@@ -618,29 +623,42 @@ export default function ComicDetailPage() {
         </DndContext>
 
         {/* Pagination */}
-        {chapters.length >= 7 && (
+        {totalPages > 1 && (
           <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-            {/* Prev */}
-            <button className="rounded-2xl border border-zinc-800 bg-zinc-900/80 px-4 py-3 text-sm text-zinc-300 transition hover:border-indigo-500 hover:text-white">
+            {/* Previous */}
+            <button
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              className="rounded-2xl border border-zinc-800 bg-zinc-900/80 px-4 py-3 text-sm text-zinc-300 disabled:cursor-not-allowed disabled:opacity-50"
+            >
               Previous
             </button>
 
-            {/* Pages */}
-            {[1, 2, 3, 4, 5].map((page) => (
-              <button
-                key={page}
-                className={`h-11 min-w-11 rounded-2xl px-4 text-sm font-semibold transition ${
-                  page === 1
-                    ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/20"
-                    : "border border-zinc-800 bg-zinc-900/80 text-zinc-300 hover:border-indigo-500 hover:text-white"
-                }`}
-              >
-                {page}
-              </button>
-            ))}
+            {/* Page Numbers */}
+            {Array.from({ length: totalPages }, (_, index) => index + 1).map(
+              (page) => (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`h-11 min-w-11 rounded-2xl px-4 text-sm font-semibold transition ${
+                    page === currentPage
+                      ? "bg-indigo-500 text-white"
+                      : "border border-zinc-800 bg-zinc-900/80 text-zinc-300 hover:border-indigo-500 hover:text-white"
+                  }`}
+                >
+                  {page}
+                </button>
+              ),
+            )}
 
             {/* Next */}
-            <button className="rounded-2xl border border-zinc-800 bg-zinc-900/80 px-4 py-3 text-sm text-zinc-300 transition hover:border-indigo-500 hover:text-white">
+            <button
+              disabled={currentPage === totalPages}
+              onClick={() =>
+                setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+              }
+              className="rounded-2xl border border-zinc-800 bg-zinc-900/80 px-4 py-3 text-sm text-zinc-300 disabled:cursor-not-allowed disabled:opacity-50"
+            >
               Next
             </button>
           </div>

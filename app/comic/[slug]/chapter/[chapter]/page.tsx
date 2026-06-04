@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 
 import {
   ArrowLeft,
@@ -24,36 +24,46 @@ type ChapterPage = {
 
 type ChapterDetail = {
   id: string;
+
+  comic: {
+    id: string;
+    title: string;
+    legacy_id: number;
+  };
+
   title: string;
   chapter_number: string;
   total_pages: number;
-  published_at: string;
+
+  published_at: string | null;
+
+  language: {
+    code: string;
+    name: string;
+  };
+
+  censorship: {
+    id: string;
+    name: string;
+  };
+
   pages: ChapterPage[];
 };
 
-async function getComicMetadata(id: string) {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
-
-  const response = await fetch(`${baseUrl}/comics/${id}/chapters`, {
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch chapters");
-  }
-
-  return response.json();
-}
-
 export default function ChapterReaderPage() {
+  const router = useRouter();
   const params = useParams();
-
   const slug = params.slug as string;
   const chapterId = params.chapter as string;
-
   const [chapter, setChapter] = useState<ChapterDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [allChapters, setAllChapters] = useState<
+    {
+      id: string;
+      chapter_number: string;
+    }[]
+  >([]);
+  const [chapterInput, setChapterInput] = useState("");
 
   const baseUrl =
     process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
@@ -63,13 +73,17 @@ export default function ChapterReaderPage() {
       try {
         setLoading(true);
 
-        const response = await getComicMetadata(slug);
+        const data: ChapterDetail = await getChapter(chapterId);
+        setChapter(data);
+        setChapterInput(data.chapter_number);
 
-        const foundChapter = response.data.find(
-          (item: ChapterDetail) => item.id === chapterId,
+        const chaptersResponse = await getComicChapters(slug);
+        setAllChapters(
+          chaptersResponse.data.map((c: any) => ({
+            id: c.id,
+            chapter_number: c.chapter_number,
+          })),
         );
-
-        setChapter(foundChapter || null);
       } catch (error) {
         console.error(error);
       } finally {
@@ -77,10 +91,44 @@ export default function ChapterReaderPage() {
       }
     };
 
-    if (slug && chapterId) {
+    if (chapterId) {
       fetchChapter();
     }
-  }, [slug, chapterId]);
+  }, [chapterId]);
+
+  const sortedChapters = [...allChapters].sort(
+    (a, b) => Number(a.chapter_number) - Number(b.chapter_number),
+  );
+  const currentIndex = sortedChapters.findIndex((c) => c.id === chapterId);
+  const prevChapter =
+    currentIndex > 0 ? sortedChapters[currentIndex - 1] : null;
+  const nextChapter =
+    currentIndex < sortedChapters.length - 1
+      ? sortedChapters[currentIndex + 1]
+      : null;
+
+  const goPrevChapter = () => {
+    if (!prevChapter) return;
+
+    router.push(`/comic/${slug}/chapter/${prevChapter.id}`);
+  };
+  const goNextChapter = () => {
+    if (!nextChapter) return;
+
+    router.push(`/comic/${slug}/chapter/${nextChapter.id}`);
+  };
+  const jumpToChapter = () => {
+    const found = allChapters.find(
+      (c) => c.chapter_number === chapterInput.trim(),
+    );
+
+    if (!found) {
+      alert("Chapter not found");
+      return;
+    }
+
+    router.push(`/comic/${slug}/chapter/${found.id}`);
+  };
 
   if (loading) {
     return (
@@ -116,37 +164,24 @@ export default function ChapterReaderPage() {
             {/* Title */}
             <div className="min-w-0">
               <p className="line-clamp-1 text-sm font-semibold text-white">
-                {chapter.title}
+                {chapter.title || `Chapter ${chapter.chapter_number}`}
               </p>
 
-              <div className="mt-1 flex items-center gap-2 text-xs text-zinc-500">
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                 <span>Chapter {chapter.chapter_number}</span>
 
                 <span className="h-1 w-1 rounded-full bg-zinc-700" />
-
                 <span>Total Pages: {chapter.total_pages}</span>
+
+                <span className="h-1 w-1 rounded-full bg-zinc-700" />
+                <span>{chapter.language.name}</span>
+
+                <span className="h-1 w-1 rounded-full bg-zinc-700" />
+                <span>{chapter.censorship.name}</span>
               </div>
             </div>
           </div>
 
-          {/* Center Navigation */}
-          <div className="hidden items-center gap-2 lg:flex">
-            <button className="group flex items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900/80 px-4 py-2 text-sm text-zinc-300 transition hover:border-indigo-500 hover:text-white">
-              <ChevronLeft className="h-4 w-4 transition group-hover:-translate-x-0.5" />
-
-              <span>Prev</span>
-            </button>
-
-            <button className="rounded-2xl border border-zinc-800 bg-zinc-900/80 px-5 py-2 text-sm font-medium text-zinc-300 transition hover:border-indigo-500 hover:text-white">
-              Chapter {chapter.chapter_number}
-            </button>
-
-            <button className="group flex items-center gap-2 rounded-2xl bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-400">
-              <span>Next</span>
-
-              <ChevronRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
-            </button>
-          </div>
           {/* tambahkan tombol link ke halaman edit chapternya */}
           <Link
             href={`/comic/${slug}/chapter/${chapterId}/edit`}
@@ -174,6 +209,7 @@ export default function ChapterReaderPage() {
                   width={1200}
                   height={1800}
                   className="h-auto w-full"
+                  loading="lazy"
                   unoptimized
                 />
               </div>
@@ -190,27 +226,79 @@ export default function ChapterReaderPage() {
           ))}
         </div>
 
-        {/* Bottom Navigation */}
-        <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
-          <button className="group flex items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900/80 px-5 py-3 text-sm text-zinc-300 transition hover:border-indigo-500 hover:text-white">
-            <ChevronLeft className="h-4 w-4 transition group-hover:-translate-x-0.5" />
-            Prev Chapter
-          </button>
+        {/* Floating Navigation */}
+        <div className="fixed right-6 bottom-6 z-50">
+          <div className="flex items-center gap-2 rounded-3xl border border-zinc-800 bg-zinc-900/95 p-2 shadow-2xl backdrop-blur-xl">
+            {/* Prev */}
+            <button
+              onClick={goPrevChapter}
+              disabled={!prevChapter}
+              className={`flex h-12 w-12 items-center justify-center rounded-2xl transition ${
+                prevChapter
+                  ? "text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                  : "cursor-not-allowed text-zinc-700"
+              }`}
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
 
-          <Link
-            href={`/comic/${slug}`}
-            className="flex items-center gap-2 rounded-2xl bg-indigo-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-400"
-          >
-            <BookOpen className="h-4 w-4" />
-            Chapter List
-          </Link>
+            {/* Chapter Input */}
+            <div className="flex items-center gap-2 rounded-2xl bg-zinc-800/80 px-3 py-2">
+              <span className="text-xs text-zinc-500">Chapter</span>
 
-          <button className="group flex items-center gap-2 rounded-2xl bg-indigo-500 px-5 py-3 text-sm font-medium text-white transition hover:bg-indigo-400">
-            Next Chapter
-            <ChevronRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
-          </button>
+              <input
+                type="text"
+                value={chapterInput}
+                onChange={(e) => setChapterInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    jumpToChapter();
+                  }
+                }}
+                className="w-16 bg-transparent text-center text-sm font-semibold text-white outline-none"
+              />
+            </div>
+
+            {/* Next */}
+            <button
+              onClick={goNextChapter}
+              disabled={!nextChapter}
+              className={`flex h-12 w-12 items-center justify-center rounded-2xl transition ${
+                nextChapter
+                  ? "bg-indigo-500 text-white hover:bg-indigo-400"
+                  : "cursor-not-allowed bg-zinc-800 text-zinc-600"
+              }`}
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          </div>
         </div>
       </main>
     </div>
   );
+}
+
+async function getComicChapters(comicId: string) {
+  const baseUrl =
+    process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
+  const response = await fetch(`${baseUrl}/comics/${comicId}/chapters`, {
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error("Failed to fetch chapters");
+  }
+
+  return response.json();
+}
+async function getChapter(chapterId: string) {
+  const baseUrl =
+    process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
+  const response = await fetch(`${baseUrl}/chapters/${chapterId}`, {
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error("Failed to fetch chapter");
+  }
+
+  return response.json();
 }
