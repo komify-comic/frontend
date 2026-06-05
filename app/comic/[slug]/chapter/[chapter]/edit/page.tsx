@@ -399,6 +399,36 @@ export default function EditChapterPage() {
     }
   }, [slug, chapterId, baseUrl]);
 
+  const handleDeleteChapter = async () => {
+    const confirmed = window.confirm(
+      `Delete chapter "${chapterMetadata.title}"?\n\nThis will permanently delete:\n- Chapter metadata\n- All chapter pages\n- All image files`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      const baseUrl =
+        process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
+      const response = await fetch(`${baseUrl}/chapters/${chapterId}`, {
+        method: "DELETE",
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || "Failed to delete chapter");
+      }
+
+      alert("Chapter deleted successfully");
+      router.push(`/comic/${slug}`);
+    } catch (error) {
+      console.error(error);
+      alert(
+        error instanceof Error ? error.message : "Failed to delete chapter",
+      );
+    }
+  };
+
   return (
     <main className="min-h-screen bg-zinc-950">
       <input
@@ -559,7 +589,10 @@ export default function EditChapterPage() {
           <section className="rounded-3xl border border-red-500/20 bg-red-500/5 p-6">
             <h2 className="mb-4 text-lg font-bold text-red-300">Danger Zone</h2>
 
-            <button className="flex w-full items-center justify-center gap-2 rounded-2xl border border-red-500/20 bg-red-500/10 py-3 text-sm font-semibold text-red-300 transition hover:bg-red-500/20">
+            <button
+              onClick={handleDeleteChapter}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-red-500/20 bg-red-500/10 py-3 text-sm font-semibold text-red-300 transition hover:bg-red-500/20"
+            >
               <Trash2 className="h-4 w-4" />
               Delete Chapter
             </button>
