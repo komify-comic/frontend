@@ -1,3 +1,3 @@
-[Komify Development Link](http://192.168.1.57:3000/)
-
-Trigger 2x
+Flow Starting Frontend:
+- npm run build
+- npm run start
