@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -136,6 +136,7 @@ async function getComicMetadata(id: string) {
 }
 
 export default function ComicDetailPage() {
+  const router = useRouter();
   const params = useParams();
 
   const slug = params.slug as string;
@@ -244,6 +245,42 @@ export default function ComicDetailPage() {
     }
   }, [chapters, currentPage]);
 
+  const [deletingComic, setDeletingComic] = useState(false);
+  const handleDeleteComic = async () => {
+    if (!comic) return;
+    const confirmed = window.confirm(
+      `Delete comic "${comic.title}"?\n\nThis will permanently delete:\n- Comic metadata\n- All chapters\n- All pages\n- All images`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setDeletingComic(true);
+
+      const baseUrl =
+        process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
+      const response = await fetch(`${baseUrl}/comics/${comic.id}`, {
+        method: "DELETE",
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || "Failed to delete comic");
+      }
+      alert(
+        `Comic deleted successfully.\n\nDeleted chapters: ${result.deleted_chapters}\nDeleted pages: ${result.deleted_pages}`,
+      );
+
+      router.push("/");
+    } catch (error) {
+      console.error(error);
+      alert(error instanceof Error ? error.message : "Failed to delete comic");
+    } finally {
+      setDeletingComic(false);
+    }
+  };
+
   if (loadingComic || !comic) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-zinc-950">
@@ -300,10 +337,21 @@ export default function ComicDetailPage() {
               </Link>
 
               {/* Delete */}
-              <button className="group flex items-center gap-2 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300 transition hover:border-red-500/40 hover:bg-red-500/20 hover:text-red-200">
-                <Trash2 className="h-4 w-4 transition group-hover:scale-110" />
-
-                <span>Delete Comic</span>
+              <button
+                onClick={handleDeleteComic}
+                disabled={deletingComic}
+                className={`group flex items-center gap-2 rounded-2xl px-4 py-3 text-sm transition ${
+                  deletingComic
+                    ? "cursor-not-allowed border border-zinc-800 bg-zinc-900 text-zinc-500"
+                    : "border border-red-500/20 bg-red-500/10 text-red-300 hover:border-red-500/40 hover:bg-red-500/20 hover:text-red-200"
+                }`}
+              >
+                <Trash2
+                  className={`h-4 w-4 ${
+                    deletingComic ? "" : "transition group-hover:scale-110"
+                  }`}
+                />
+                <span>{deletingComic ? "Deleting..." : "Delete Comic"}</span>
               </button>
             </nav>
           </div>
