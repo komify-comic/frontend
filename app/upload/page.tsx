@@ -271,6 +271,7 @@ export default function UploadPage() {
   });
   const [metadata, setMetadata] = useState({
     title: "",
+    alternative_title: "",
     parodies: "",
     characters: "",
     artists: "",
@@ -554,6 +555,63 @@ export default function UploadPage() {
     });
   }, []);
 
+  // EXTRACT METADATA FROM URL
+  const [showExtractModal, setShowExtractModal] = useState(false);
+  const [extractUrl, setExtractUrl] = useState("");
+  const [extracting, setExtracting] = useState(false);
+  const handleExtract = async () => {
+    if (!extractUrl.trim()) {
+      alert("Please enter URL");
+      return;
+    }
+
+    try {
+      setExtracting(true);
+
+      const baseUrl =
+        process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
+      const response = await fetch(`${baseUrl}/scraper/metadata`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          url: extractUrl,
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to extract metadata");
+      }
+
+      const data = result.data;
+      setMetadata((prev) => ({
+        ...prev,
+        title: data.title || "",
+        alternative_title: data.alternative_title || "",
+        parodies: Array.isArray(data.parodies) ? data.parodies.join(", ") : "",
+        characters: Array.isArray(data.characters)
+          ? data.characters.join(", ")
+          : "",
+        artists: Array.isArray(data.artists) ? data.artists.join(", ") : "",
+        groups: Array.isArray(data.groups) ? data.groups.join(", ") : "",
+        tags: Array.isArray(data.tags) ? data.tags.join(", ") : "",
+      }));
+
+      setShowExtractModal(false);
+      setExtractUrl("");
+      alert("Metadata extracted successfully");
+    } catch (error) {
+      console.error(error);
+      alert(
+        error instanceof Error ? error.message : "Failed to extract metadata",
+      );
+    } finally {
+      setExtracting(false);
+    }
+  };
+
   if (!isMounted) {
     return (
       <div className="space-y-4 animate-pulse bg-zinc-900/20 rounded-3xl h-96 w-full" />
@@ -708,7 +766,7 @@ export default function UploadPage() {
               Metadata
             </h2>
             <button
-              // onClick={() => setIsExtractModalOpen(true)}
+              onClick={() => setShowExtractModal(true)}
               className="flex items-center gap-2 rounded-2xl border border-indigo-500/20 bg-indigo-500/10 px-4 py-2 text-xs font-semibold text-indigo-300 transition hover:bg-indigo-500/20 hover:text-white"
             >
               <Sparkles className="h-4 w-4" />
@@ -1115,6 +1173,68 @@ export default function UploadPage() {
           </DndContext>
         </section>
       </main>
+
+      {/* Extract Modal */}
+      {showExtractModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-3xl border border-zinc-800 bg-zinc-950 shadow-2xl">
+            {/* Header */}
+            <div className="border-b border-zinc-800 px-6 py-5">
+              <h2 className="text-lg font-bold text-white">
+                Extract Comic Metadata
+              </h2>
+
+              <p className="mt-1 text-sm text-zinc-500">
+                Paste source URL to automatically extract comic information.
+              </p>
+            </div>
+
+            {/* Content */}
+            <div className="space-y-3 px-6 py-5">
+              <label className="block text-sm font-medium text-zinc-300">
+                Source URL
+              </label>
+
+              <input
+                type="url"
+                value={extractUrl}
+                onChange={(e) => setExtractUrl(e.target.value)}
+                placeholder="https://example.com/comic/123"
+                className="w-full rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-white outline-none transition focus:border-indigo-500"
+              />
+            </div>
+
+            {/* Footer */}
+            <div className="flex justify-end gap-3 border-t border-zinc-800 px-6 py-5">
+              <button
+                onClick={() => {
+                  setShowExtractModal(false);
+                  setExtractUrl("");
+                }}
+                className="rounded-2xl border border-zinc-800 px-5 py-3 text-sm font-medium text-zinc-300 transition hover:border-zinc-700 hover:text-white"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleExtract}
+                disabled={extracting}
+                className="
+                  flex items-center gap-2 rounded-2xl
+                  bg-indigo-500 px-5 py-3
+                  text-sm font-semibold text-white
+                  transition hover:bg-indigo-400
+                  disabled:opacity-50
+                  disabled:cursor-not-allowed
+                "
+              >
+                <Sparkles className="h-4 w-4" />
+                {extracting ? "Extracting..." : "Extract"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ================= FIX METADATA MODAL ================= */}
       {fixModal.open && (
