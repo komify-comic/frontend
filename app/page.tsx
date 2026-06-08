@@ -6,9 +6,8 @@ import {
   Settings,
   Search,
   BookOpenText,
-  ChevronLeft,
-  ChevronRight,
   Filter,
+  RotateCcw,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -16,21 +15,13 @@ import { useEffect, useMemo, useState } from "react";
 type Comic = {
   id: string;
   title: string;
-
   seo_slug: string | null;
-
   legacy_id: number;
-
   cover_path: string | null;
-
   published_at: string;
-
   total_chapters: number;
-
   rating_score: number;
-
   rating_count: number;
-
   status: {
     id: string;
     name: string;
@@ -52,9 +43,7 @@ type HomepageResponse = {
 export default function HomePage() {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
-
   const [comics, setComics] = useState<Comic[]>([]);
-
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
@@ -63,6 +52,124 @@ export default function HomePage() {
     total_data: 0,
     total_pages: 1,
   });
+  const [search, setSearch] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState("");
+  const [selectedLanguage, setSelectedLanguage] = useState("");
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [sort, setSort] = useState("latest");
+  const [searchInput, setSearchInput] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchInput);
+      setPage(1);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  const buildQuery = () => {
+    const params = new URLSearchParams();
+    params.set("page", page.toString());
+    params.set("limit", "10");
+
+    if (search) params.set("q", search);
+    if (selectedCategory) params.set("category", selectedCategory);
+    if (selectedStatus) params.set("status", selectedStatus);
+    if (selectedLanguage) params.set("language", selectedLanguage);
+    if (selectedTags.length) params.set("tags", selectedTags.join(","));
+    if (sort) params.set("sort", sort);
+    return params.toString();
+  };
+  const fetchComics = async () => {
+    try {
+      setLoading(true);
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/comics?${buildQuery()}`,
+      );
+      const result: HomepageResponse = await response.json();
+      setComics(result.data);
+      setPagination(result.pagination);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => {
+    fetchComics();
+  }, [
+    page,
+    search,
+    selectedCategory,
+    selectedStatus,
+    selectedLanguage,
+    selectedTags,
+    sort,
+  ]);
+  const categories = [
+    { label: "Manga", value: "manga" },
+    { label: "Manhwa", value: "manhwa" },
+    { label: "Manhua", value: "manhua" },
+  ];
+  const tags = [
+    "Action",
+    "Adventure",
+    "Comedy",
+    "Drama",
+    "Fantasy",
+    "Horror",
+    "Mystery",
+    "Romance",
+    "Sci-Fi",
+    "Slice of Life",
+  ];
+  const statuses = ["Ongoing", "Completed", "Hiatus"];
+  const sortOptions = [
+    {
+      label: "Latest",
+      value: "latest",
+    },
+    {
+      label: "Newest",
+      value: "newest",
+    },
+    {
+      label: "Popular",
+      value: "popular",
+    },
+    {
+      label: "A-Z",
+      value: "title",
+    },
+  ];
+  const toggleTag = (tag: string) => {
+    setSelectedTags((prev) =>
+      prev.includes(tag) ? prev.filter((x) => x !== tag) : [...prev, tag],
+    );
+    setPage(1);
+  };
+  const activeFilterCount =
+    Number(!!selectedCategory) +
+    Number(!!selectedStatus) +
+    Number(!!selectedLanguage) +
+    selectedTags.length;
+  const resetFilters = () => {
+    setSearch("");
+    setSearchInput("");
+    setSelectedCategory("");
+    setSelectedStatus("");
+    setSelectedLanguage("");
+    setSelectedTags([]);
+    setTagSearch("");
+    setSort("latest");
+    setPage(1);
+  };
+
+  const [tagSearch, setTagSearch] = useState("");
+  const filteredTags = tags.filter((tag) =>
+    tag.toLowerCase().includes(tagSearch.toLowerCase()),
+  );
 
   /* ================= FETCH ================= */
   const fetchHomepage = async (targetPage: number) => {
@@ -147,9 +254,9 @@ export default function HomePage() {
           <div className="hidden md:block">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
-
               <input
-                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="Search comics..."
                 className="w-100 rounded-xl border border-zinc-800 bg-zinc-900 py-2 pl-10 pr-4 text-sm outline-none transition focus:border-indigo-500"
               />
@@ -191,10 +298,25 @@ export default function HomePage() {
           {/* Sidebar Filter */}
           <aside className="h-fit rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5 lg:sticky lg:top-24">
             {/* Header */}
-            <div className="mb-6 flex items-center gap-2">
-              <Filter className="h-5 w-5 text-indigo-400" />
-
-              <h3 className="font-semibold">Filters</h3>
+            <div className="mb-6 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Filter className="h-5 w-5 text-indigo-400" />
+                <h3 className="font-semibold">Filters</h3>
+                {activeFilterCount > 0 && (
+                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-indigo-500 px-1.5 text-[10px] font-bold text-white">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </div>
+              {activeFilterCount > 0 && (
+                <button
+                  onClick={resetFilters}
+                  title="Reset filters"
+                  className="group flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-zinc-800 hover:text-white"
+                >
+                  <RotateCcw className="h-4 w-4 transition group-hover:-rotate-180" />
+                </button>
+              )}
             </div>
 
             {/* Categories */}
@@ -202,69 +324,22 @@ export default function HomePage() {
               <h4 className="mb-3 text-sm font-medium text-zinc-300">
                 Categories
               </h4>
-
               <div className="flex flex-wrap gap-2">
-                {["Manga", "Manhwa", "Manhua"].map((item, index) => (
+                {categories.map((item) => (
                   <button
-                    key={item}
+                    key={item.value}
+                    onClick={() =>
+                      setSelectedCategory(
+                        selectedCategory === item.value ? "" : item.value,
+                      )
+                    }
                     className={`rounded-xl border px-3 py-2 text-xs font-medium transition ${
-                      index === 0
+                      selectedCategory === item.value
                         ? "border-indigo-500 bg-indigo-500 text-white"
                         : "border-zinc-800 bg-zinc-950 text-zinc-300 hover:border-indigo-500 hover:text-white"
                     }`}
                   >
-                    {item}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Tags */}
-            <div className="mb-6">
-              <h4 className="mb-3 text-sm font-medium text-zinc-300">Tags</h4>
-
-              <div className="flex flex-wrap gap-2">
-                {[
-                  "Adventure",
-                  "Fantasy",
-                  "Action",
-                  "Strategy",
-                  "Drama",
-                  "Romance",
-                  "Comedy",
-                  "Sci-Fi",
-                ].map((tag, index) => (
-                  <button
-                    key={tag}
-                    className={`rounded-xl border px-3 py-2 text-xs font-medium transition ${
-                      index === 1 || index === 2
-                        ? "border-indigo-500 bg-indigo-500 text-white"
-                        : "border-zinc-800 bg-zinc-950 text-zinc-300 hover:border-indigo-500 hover:text-white"
-                    }`}
-                  >
-                    {tag}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Language */}
-            <div className="mb-6">
-              <h4 className="mb-3 text-sm font-medium text-zinc-300">
-                Language
-              </h4>
-
-              <div className="flex flex-wrap gap-2">
-                {["English", "Japanese", "Indonesian"].map((lang, index) => (
-                  <button
-                    key={lang}
-                    className={`rounded-xl border px-3 py-2 text-xs font-medium transition ${
-                      index === 0
-                        ? "border-indigo-500 bg-indigo-500 text-white"
-                        : "border-zinc-800 bg-zinc-950 text-zinc-300 hover:border-indigo-500 hover:text-white"
-                    }`}
-                  >
-                    {lang}
+                    {item.label}
                   </button>
                 ))}
               </div>
@@ -273,12 +348,18 @@ export default function HomePage() {
             {/* Status */}
             <div className="mb-6">
               <h4 className="mb-3 text-sm font-medium text-zinc-300">Status</h4>
-
               <div className="flex flex-wrap gap-2">
-                {["Ongoing", "Completed", "Hiatus"].map((status) => (
+                {statuses.map((status) => (
                   <button
                     key={status}
-                    className="rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs font-medium text-zinc-300 transition hover:border-indigo-500 hover:text-white"
+                    onClick={() =>
+                      setSelectedStatus(selectedStatus === status ? "" : status)
+                    }
+                    className={`rounded-xl border px-3 py-2 text-xs font-medium transition ${
+                      selectedStatus === status
+                        ? "border-indigo-500 bg-indigo-500 text-white"
+                        : "border-zinc-800 bg-zinc-950 text-zinc-300 hover:border-indigo-500 hover:text-white"
+                    }`}
                   >
                     {status}
                   </button>
@@ -291,32 +372,65 @@ export default function HomePage() {
               <h4 className="mb-3 text-sm font-medium text-zinc-300">
                 Sort By
               </h4>
-
               <div className="flex flex-wrap gap-2">
-                {["Latest", "Newest", "Popular", "A-Z"].map((sort, index) => (
+                {sortOptions.map((item) => (
                   <button
-                    key={sort}
+                    key={item.value}
+                    onClick={() => setSort(item.value)}
                     className={`rounded-xl border px-3 py-2 text-xs font-medium transition ${
-                      index === 0
+                      sort === item.value
                         ? "border-indigo-500 bg-indigo-500 text-white"
                         : "border-zinc-800 bg-zinc-950 text-zinc-300 hover:border-indigo-500 hover:text-white"
                     }`}
                   >
-                    {sort}
+                    {item.label}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex gap-2">
-              <button className="flex-1 rounded-xl bg-indigo-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-400">
-                Apply
-              </button>
+            {/* Tags */}
+            <div className="mb-6">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <h4 className="text-sm font-medium text-zinc-300">Tags</h4>
+                <input
+                  type="text"
+                  value={tagSearch}
+                  onChange={(e) => setTagSearch(e.target.value)}
+                  placeholder="Search..."
+                  className="w-32 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-1.5 text-xs text-white outline-none transition focus:border-indigo-500"
+                />
+              </div>
 
-              <button className="rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm font-medium text-zinc-300 transition hover:bg-zinc-800">
-                Reset
-              </button>
+              {/* Selected Tags */}
+              {selectedTags.length > 0 && (
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {selectedTags.map((tag) => (
+                    <button
+                      key={tag}
+                      onClick={() => toggleTag(tag)}
+                      className="rounded-xl border border-indigo-500 bg-indigo-500 px-3 py-2 text-xs font-medium text-white"
+                    >
+                      {tag} ✕
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Available Tags */}
+              <div className="flex max-h-48 flex-wrap gap-2 overflow-y-auto">
+                {filteredTags
+                  .filter((tag) => !selectedTags.includes(tag))
+                  .map((tag) => (
+                    <button
+                      key={tag}
+                      onClick={() => toggleTag(tag)}
+                      className="rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs font-medium text-zinc-300 transition hover:border-indigo-500 hover:text-white"
+                    >
+                      {tag}
+                    </button>
+                  ))}
+              </div>
             </div>
           </aside>
 
