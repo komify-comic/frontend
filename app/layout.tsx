@@ -13,7 +13,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Komify",
+  title: {
+    default: "Komify",
+    template: "%s | Komify",
+  },
   description: "Personal Webcomic Library",
 };
 

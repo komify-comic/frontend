@@ -29,6 +29,9 @@ import {
   BookOpen,
   Plus,
   GripVertical,
+  Check,
+  ArrowUpDown,
+  Search,
 } from "lucide-react";
 
 type ComicMetadata = {
@@ -135,6 +138,13 @@ async function getComicMetadata(id: string) {
   return response.json();
 }
 
+const statusPremiumStyles: Record<string, string> = {
+  Completed: "bg-emerald-500 shadow-emerald-500/20 text-white",
+  Ongoing: "bg-sky-500 shadow-sky-500/20 text-white",
+  "Not Completed": "bg-rose-500 shadow-rose-500/20 text-white",
+  Unknown: "bg-zinc-500 shadow-zinc-500/20 text-white",
+};
+
 export default function ComicDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -219,13 +229,21 @@ export default function ComicDetailPage() {
     null,
   );
   useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setSelectedChapter(null);
+      }
+    };
     if (selectedChapter) {
       document.body.style.overflow = "hidden";
+      window.addEventListener("keydown", handleKeyDown);
     } else {
       document.body.style.overflow = "auto";
     }
+
     return () => {
       document.body.style.overflow = "auto";
+      window.removeEventListener("keydown", handleKeyDown);
     };
   }, [selectedChapter]);
 
@@ -448,8 +466,13 @@ export default function ComicDetailPage() {
                 </div>
 
                 {/* Status */}
-                <span className="rounded-2xl bg-emerald-500 px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-white shadow-lg shadow-emerald-500/20">
-                  {comic.status.name}
+                <span
+                  className={`rounded-2xl px-3 py-2 text-[10px] font-bold uppercase tracking-wide shadow-lg transition-all duration-300 ${
+                    statusPremiumStyles[comic.status?.name] ||
+                    "bg-zinc-500 shadow-zinc-500/20 text-white"
+                  }`}
+                >
+                  {comic.status?.name || "Unknown"}
                 </span>
 
                 {/* Type */}
@@ -579,52 +602,65 @@ export default function ComicDetailPage() {
       <section className="flex min-h-screen flex-col px-6 py-8" id="chapters">
         {/* Header */}
         <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          {/* Left */}
-          <div>
-            <h2 className="text-3xl font-black tracking-tight text-white">
-              Chapters
-            </h2>
+          {/* Left: Title & Add Action */}
+          <div className="flex flex-wrap items-center justify-between gap-4 sm:justify-start sm:gap-6">
+            <div>
+              <h2 className="text-3xl font-black tracking-tight text-white">
+                Chapters
+              </h2>
+              <p className="mt-0.5 text-xs font-medium text-zinc-500">
+                {chapters.length} chapters available
+              </p>
+            </div>
 
-            <p className="mt-1 text-sm text-zinc-500">
-              {chapters.length} chapters available
-            </p>
-          </div>
-
-          {/* Controls */}
-          <div className="flex flex-wrap gap-3">
-            {/* Add Chapter */}
+            {/* Add Chapter (Sekarang sejajar dengan judul, menghemat ruang) */}
             <Link
               href={`/comic/${comic.id}/chapter/create`}
-              className="flex items-center gap-2 rounded-2xl bg-indigo-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-400"
+              className="group flex h-11 items-center gap-2 rounded-2xl bg-indigo-500 px-4 text-sm font-semibold text-white shadow-lg shadow-indigo-500/10 transition-all duration-200 hover:bg-indigo-400 hover:shadow-indigo-500/20 active:scale-95"
             >
-              <Plus className="h-4 w-4" />
-              Add Chapter
+              <Plus className="h-4 w-4 transition-transform group-hover:rotate-90" />
+              <span>Add Chapter</span>
             </Link>
+          </div>
 
-            {/* Edit Ordering */}
+          {/* Right: Controls Panel */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            {/* Edit Ordering Button */}
             <button
               onClick={() => setIsOrderingMode((prev) => !prev)}
-              className={`flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-semibold transition ${
+              className={`flex h-11 items-center justify-center gap-2 rounded-2xl px-5 text-sm font-bold border transition-all duration-200 active:scale-95 ${
                 isOrderingMode
-                  ? "border border-emerald-500/20 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:text-white"
-                  : "border border-amber-500/20 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:text-white"
+                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400 shadow-lg shadow-emerald-500/5 hover:bg-emerald-500/20"
+                  : "border-amber-500/30 bg-amber-500/10 text-amber-400 shadow-lg shadow-amber-500/5 hover:bg-amber-500/20"
               }`}
             >
-              <GripVertical className="h-4 w-4" />
-
-              {isOrderingMode ? "Save Ordering" : "Edit Ordering"}
+              {isOrderingMode ? (
+                <>
+                  <Check className="h-4 w-4 animate-pulse" />
+                  <span>Save Ordering</span>
+                </>
+              ) : (
+                <>
+                  <GripVertical className="h-4 w-4" />
+                  <span>Edit Ordering</span>
+                </>
+              )}
             </button>
+            {/* Search Input Wrapper */}
+            <div className="relative flex-1 sm:w-64 sm:flex-none">
+              <input
+                type="text"
+                placeholder="Search chapter..."
+                className="w-full rounded-2xl border border-zinc-800 bg-zinc-900/40 py-3 pl-11 pr-4 text-sm text-zinc-200 placeholder-zinc-500 outline-none backdrop-blur-sm transition-all duration-200 focus:border-indigo-500 focus:bg-zinc-900/80 focus:ring-2 focus:ring-indigo-500/10"
+              />
+              {/* Icon Search ditambahkan sebagai pemanis visual */}
+              <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500 pointer-events-none" />
+            </div>
 
-            {/* Search */}
-            <input
-              type="text"
-              placeholder="Search chapter..."
-              className="rounded-2xl border border-zinc-800 bg-zinc-900/80 px-4 py-3 text-sm text-zinc-200 outline-none transition focus:border-indigo-500"
-            />
-
-            {/* Sort */}
-            <button className="rounded-2xl border border-zinc-800 bg-zinc-900/80 px-4 py-3 text-sm text-zinc-300 transition hover:border-indigo-500 hover:bg-indigo-500/10 hover:text-white">
-              Latest First
+            {/* Sort Button */}
+            <button className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900/40 px-4 text-sm font-medium text-zinc-300 backdrop-blur-sm transition-all duration-200 hover:border-indigo-500/40 hover:bg-zinc-900/80 hover:text-white active:scale-95">
+              <ArrowUpDown className="h-4 w-4 text-zinc-500" />
+              <span>Latest First</span>
             </button>
           </div>
         </div>
@@ -833,45 +869,64 @@ function SortableChapterCard({
     >
       {/* Left */}
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-3">
-          {/* Drag Handle */}
-          <button
-            {...attributes}
-            {...listeners}
-            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border transition ${
-              isOrderingMode
-                ? "cursor-grab border-zinc-700 bg-zinc-900 text-zinc-400 hover:border-amber-500 hover:text-white active:cursor-grabbing"
-                : "pointer-events-none invisible opacity-0"
-            }`}
-          >
-            <GripVertical className="h-4 w-4" />
-          </button>
+        <div className="flex items-center gap-4">
+          {/* Kontainer Dinamis untuk Aksi Kiri (Mencegah Layout Pincang) */}
+          <div className="relative h-12 w-12 shrink-0">
+            {/* Drag Handle */}
+            <button
+              {...attributes}
+              {...listeners}
+              className={`absolute inset-0 flex items-center justify-center rounded-2xl border transition-all duration-200 ${
+                isOrderingMode
+                  ? "cursor-grab border-zinc-700 bg-zinc-900 text-zinc-400 hover:border-amber-500 hover:text-white active:cursor-grabbing scale-100 opacity-100 visibility-visible"
+                  : "pointer-events-none scale-75 opacity-0 invisible"
+              }`}
+            >
+              <GripVertical className="h-4 w-4" />
+            </button>
 
-          {/* Edit */}
-          <Link
-            href={`/comic/${comicId}/chapter/${chapter.id}/edit`}
-            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border transition ${
-              isOrderingMode
-                ? "pointer-events-none invisible opacity-0"
-                : "border-amber-500/20 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:text-white"
-            }`}
-          >
-            <Pencil className="h-4 w-4" />
-          </Link>
-
-          {/* Number */}
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-zinc-800 text-sm font-bold text-zinc-200">
-            {chapter.chapter_number}
+            {/* Edit */}
+            <Link
+              href={`/comic/${comicId}/chapter/${chapter.id}/edit`}
+              className={`absolute inset-0 flex items-center justify-center rounded-2xl border transition-all duration-200 ${
+                isOrderingMode
+                  ? "pointer-events-none scale-75 opacity-0 invisible"
+                  : "border-amber-500/20 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:text-white scale-100 opacity-100 visibility-visible"
+              }`}
+            >
+              <Pencil className="h-4 w-4" />
+            </Link>
           </div>
 
-          {/* Info */}
-          <div className="min-w-0">
-            <h3 className="truncate text-sm font-semibold text-zinc-100">
+          {/* Number Badge */}
+          <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-2xl bg-zinc-800/80 border border-zinc-700/50 text-sm font-black text-zinc-100 shadow-inner">
+            <span className="text-[10px] uppercase tracking-wider text-zinc-500 font-medium leading-none mb-0.5">
+              CH
+            </span>
+            <span className="leading-none text-base">
+              {chapter.chapter_number}
+            </span>
+          </div>
+
+          {/* Info Text (Hierarki Diperbaiki) */}
+          <div className="min-w-0 flex-1 shared-info-layout">
+            <h3 className="truncate text-sm font-semibold text-zinc-100 group-hover:text-indigo-400 transition-colors">
               {chapter.title}
             </h3>
-            <p className="mt-1 text-xs text-zinc-500">
-              Released {new Date(chapter.published_at).toLocaleDateString()}
-            </p>
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-zinc-400">
+              <span className="font-medium text-indigo-300 bg-indigo-500/10 px-1.5 py-0.5 rounded-md">
+                {chapter.total_pages} Pages
+              </span>
+              <span className="text-zinc-600">•</span>
+              <span>
+                Released{" "}
+                {new Date(chapter.published_at).toLocaleDateString(undefined, {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -880,31 +935,30 @@ function SortableChapterCard({
       <div
         className={`flex items-center gap-3 transition-all duration-200 ${
           isOrderingMode
-            ? "pointer-events-none invisible opacity-0"
-            : "visible opacity-100"
+            ? "pointer-events-none translate-x-4 opacity-0 invisible"
+            : "translate-x-0 opacity-100 visibility-visible"
         }`}
       >
-        {/* Badge */}
+        {/* Badge Censorship */}
         <span className="hidden rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-[11px] font-semibold text-emerald-300 shadow-sm shadow-emerald-500/10 sm:block">
           {chapter.censorship?.name || "Unknown"}
         </span>
 
-        {/* Thumbnail */}
+        {/* Thumbnail Button */}
         <button
           onClick={() => setSelectedChapter(chapter)}
-          className="group flex h-12 items-center gap-2 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/80 px-3 py-2 text-sm font-medium text-zinc-300 transition hover:border-fuchsia-500 hover:bg-fuchsia-500/10 hover:text-white"
+          className="group/btn flex h-12 items-center gap-2 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/80 px-3.5 py-2 text-sm font-medium text-zinc-300 transition-all duration-200 hover:border-fuchsia-500/50 hover:bg-fuchsia-500/10 hover:text-white"
         >
-          <ImageIcon className="h-4 w-4 transition group-hover:scale-110" />
-
+          <ImageIcon className="h-4 w-4 text-zinc-400 transition group-hover/btn:scale-110 group-hover/btn:text-fuchsia-400" />
           <span>Thumbnail</span>
         </button>
 
-        {/* Read */}
+        {/* Read Button */}
         <Link
           href={`/comic/${comicId}/chapter/${chapter.id}`}
-          className="group flex h-12 items-center gap-2 rounded-2xl bg-zinc-800 px-5 py-2 text-sm font-medium text-zinc-200 transition hover:bg-indigo-500 hover:text-white"
+          className="group/btn flex h-12 items-center gap-2 rounded-2xl bg-zinc-200 px-5 py-2 text-sm font-semibold text-zinc-900 transition-all duration-200 hover:bg-indigo-500 hover:text-white"
         >
-          <BookOpen className="h-4 w-4 transition group-hover:scale-110" />
+          <BookOpen className="h-4 w-4 transition group-hover/btn:scale-110" />
           <span>Read Chapter</span>
         </Link>
       </div>

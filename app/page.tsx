@@ -40,6 +40,13 @@ type HomepageResponse = {
   };
 };
 
+const statusStyles: Record<string, string> = {
+  Completed: "bg-emerald-500 text-white",
+  Ongoing: "bg-sky-500 text-white",
+  "Not Completed": "bg-rose-500 text-white",
+  Unknown: "bg-zinc-500 text-white",
+};
+
 export default function HomePage() {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -485,11 +492,12 @@ export default function HomePage() {
 
                             {/* Status */}
                             <div
-                              className={`rounded-lg px-2 py-1 text-[10px] font-semibold text-white ${
-                                isCompleted ? "bg-emerald-500" : "bg-amber-500"
+                              className={`rounded-lg px-2 py-1 text-[10px] font-semibold text-center uppercase tracking-wider ${
+                                statusStyles[comic.status?.name] ||
+                                "bg-zinc-500 text-white"
                               }`}
                             >
-                              {comic.status?.name}
+                              {comic.status?.name || "Unknown"}
                             </div>
                           </div>
 
