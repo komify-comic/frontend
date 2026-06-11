@@ -1,7 +1,107 @@
+"use client";
+
 import Link from "next/link";
 import { ArrowLeft, Bookmark, Clock3, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+
+type BookmarkComic = {
+  id: string;
+  title: string;
+  seo_slug: string | null;
+  cover_path: string | null;
+  alternative_title: string | null;
+  category_id: string | null;
+};
+
+type BookmarkItem = {
+  comic_id: string;
+  created_at: string;
+  comics: BookmarkComic;
+};
 
 export default function BookmarkPage() {
+  const baseUrl =
+    process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
+
+  const [bookmarks, setBookmarks] = useState<BookmarkItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 20;
+
+  useEffect(() => {
+    const fetchBookmarks = async () => {
+      try {
+        const response = await fetch(`${baseUrl}/bookmarks`, {
+          cache: "no-store",
+        });
+        if (!response.ok) {
+          throw new Error("Failed to fetch bookmarks");
+        }
+
+        const data = await response.json();
+        setBookmarks(data);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBookmarks();
+  }, [baseUrl]);
+
+  const removeBookmark = async (comicId: string) => {
+    try {
+      const response = await fetch(`${baseUrl}/bookmarks/${comicId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        throw new Error("Failed to delete bookmark");
+      }
+
+      setBookmarks((prev) => prev.filter((x) => x.comics.id !== comicId));
+    } catch (error) {
+      console.error(error);
+      alert("Failed to remove bookmark");
+    }
+  };
+
+  const clearAllBookmarks = async () => {
+    if (!confirm("Clear all bookmarks?")) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${baseUrl}/bookmarks`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        throw new Error("Failed");
+      }
+
+      setBookmarks([]);
+    } catch (error) {
+      console.error(error);
+      alert("Failed to clear bookmarks");
+    }
+  };
+
+  // Filter, Search, Sort
+  const filteredBookmarks = bookmarks.filter((item) =>
+    item.comics.title.toLowerCase().includes(search.toLowerCase()),
+  );
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredBookmarks.length / PAGE_SIZE),
+  );
+
+  const paginatedBookmarks = filteredBookmarks.slice(
+    (page - 1) * PAGE_SIZE,
+    page * PAGE_SIZE,
+  );
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
       {/* Header */}
@@ -30,6 +130,8 @@ export default function BookmarkPage() {
             <div className="relative">
               <input
                 type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search bookmarks..."
                 className="w-64 rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 pl-10 text-sm text-zinc-200 outline-none transition focus:border-indigo-500"
               />
@@ -54,7 +156,10 @@ export default function BookmarkPage() {
           </div>
 
           {/* Right */}
-          <button className="flex items-center gap-2 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm text-red-300 transition hover:bg-red-500/20">
+          <button
+            onClick={clearAllBookmarks}
+            className="flex items-center gap-2 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm text-red-300 transition hover:bg-red-500/20"
+          >
             <Trash2 className="h-4 w-4" />
             Clear All
           </button>
@@ -65,64 +170,78 @@ export default function BookmarkPage() {
       <main className="mx-auto max-w-7xl px-6 py-5">
         {/* Grid */}
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-          {Array.from({ length: 10 }).map((_, index) => (
-            <div
-              key={index}
-              className="group relative cursor-pointer overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900/40 transition hover:border-indigo-500/40"
-            >
-              {/* Cover */}
-              <div className="aspect-2/3 bg-zinc-900" />
-
-              {/* Overlay */}
-              <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/80 to-transparent p-4">
-                <h3 className="line-clamp-2 text-sm font-semibold text-white">
-                  Comic Title Very Long Example That Will Be Clamped
-                </h3>
-
-                <p className="mt-1 text-xs text-zinc-400">
-                  Chapter 120 • 2h ago
-                </p>
-              </div>
-
-              {/* Actions */}
-              <div className="absolute right-2 top-2 opacity-0 transition group-hover:opacity-100">
-                <button className="rounded-xl bg-red-500/10 p-2 text-red-300 backdrop-blur-xl hover:bg-red-500/20">
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
+          {loading ? (
+            <div className="col-span-full py-20 text-center text-zinc-500">
+              Loading bookmarks...
             </div>
-          ))}
-        </div>
+          ) : paginatedBookmarks.length === 0 ? (
+            <div className="col-span-full py-20 text-center">
+              <Bookmark className="mx-auto mb-4 h-12 w-12 text-zinc-700" />
 
+              <p className="text-zinc-500">No bookmarks found</p>
+            </div>
+          ) : (
+            paginatedBookmarks.map((item) => (
+              <Link
+                key={item.comics.id}
+                href={`/comic/${item.comics.seo_slug ?? item.comics.id}`}
+                className="group relative overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900/40 transition hover:border-indigo-500/40"
+              >
+                <div className="aspect-2/3 bg-zinc-900">
+                  {item.comics.cover_path && (
+                    <img
+                      src={`${baseUrl}${item.comics.cover_path}`}
+                      alt={item.comics.title}
+                      className="h-full w-full object-cover"
+                    />
+                  )}
+                </div>
+
+                <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/80 to-transparent p-4">
+                  <h3 className="line-clamp-2 text-sm font-semibold text-white">
+                    {item.comics.title}
+                  </h3>
+
+                  <p className="mt-1 flex items-center gap-1 text-xs text-zinc-400">
+                    <Clock3 className="h-3 w-3" />
+                    {new Date(item.created_at).toLocaleDateString()}
+                  </p>
+                </div>
+
+                <div className="absolute right-2 top-2 opacity-0 transition group-hover:opacity-100">
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      removeBookmark(item.comics.id);
+                    }}
+                    className="rounded-xl bg-red-500/10 p-2 text-red-300 backdrop-blur-xl hover:bg-red-500/20"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </Link>
+            ))
+          )}
+        </div>
         {/* Pagination */}
         <div className="mt-5 flex items-center justify-center gap-2">
-          {/* Prev */}
-          <button className="rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm text-zinc-400 transition hover:border-indigo-500 hover:text-white disabled:opacity-40">
+          <button
+            disabled={page === 1}
+            onClick={() => setPage((p) => p - 1)}
+            className="rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm text-zinc-400 transition hover:border-indigo-500 hover:text-white disabled:opacity-40"
+          >
             Prev
           </button>
 
-          {/* Pages */}
-          <button className="h-10 w-10 rounded-xl bg-indigo-500 text-sm font-semibold text-white">
-            1
-          </button>
+          <span className="px-4 text-sm text-zinc-400">
+            {page} / {totalPages}
+          </span>
 
-          <button className="h-10 w-10 rounded-xl border border-zinc-800 bg-zinc-900/60 text-sm text-zinc-400 transition hover:border-indigo-500 hover:text-white">
-            2
-          </button>
-
-          <button className="h-10 w-10 rounded-xl border border-zinc-800 bg-zinc-900/60 text-sm text-zinc-400 transition hover:border-indigo-500 hover:text-white">
-            3
-          </button>
-
-          {/* Ellipsis */}
-          <span className="px-2 text-zinc-500">...</span>
-
-          <button className="h-10 w-10 rounded-xl border border-zinc-800 bg-zinc-900/60 text-sm text-zinc-400 transition hover:border-indigo-500 hover:text-white">
-            10
-          </button>
-
-          {/* Next */}
-          <button className="rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm text-zinc-400 transition hover:border-indigo-500 hover:text-white">
+          <button
+            disabled={page >= totalPages}
+            onClick={() => setPage((p) => p + 1)}
+            className="rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm text-zinc-400 transition hover:border-indigo-500 hover:text-white disabled:opacity-40"
+          >
             Next
           </button>
         </div>

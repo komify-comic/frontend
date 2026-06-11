@@ -22,6 +22,7 @@ import {
   Star,
   Clock3,
   BookmarkPlus,
+  Bookmark,
   Pencil,
   Trash2,
   ArrowLeft,
@@ -154,6 +155,9 @@ export default function ComicDetailPage() {
   const [loadingComic, setLoadingComic] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [isOrderingMode, setIsOrderingMode] = useState(false);
+  const [bookmarked, setBookmarked] = useState(false);
+  const [bookmarkLoading, setBookmarkLoading] = useState(false);
+
   const baseUrl =
     process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
   const coverUrl = comic?.cover_path ? `${baseUrl}${comic.cover_path}` : null;
@@ -163,8 +167,14 @@ export default function ComicDetailPage() {
       try {
         setLoadingComic(true);
 
-        const data = await getComicMetadata(slug);
+        const data: ComicMetadata = await getComicMetadata(slug);
         setComic(data);
+
+        const bookmarkResponse = await fetch(`${baseUrl}/bookmarks/${data.id}`);
+        if (bookmarkResponse.ok) {
+          const bookmarkData = await bookmarkResponse.json();
+          setBookmarked(bookmarkData.bookmarked);
+        }
       } catch (error) {
         console.error(error);
       } finally {
@@ -175,7 +185,36 @@ export default function ComicDetailPage() {
     if (slug) {
       fetchComic();
     }
-  }, [slug]);
+  }, [slug, baseUrl]);
+
+  const handleBookmark = async () => {
+    if (!comic?.id || bookmarkLoading) {
+      return;
+    }
+
+    const previousState = bookmarked;
+    try {
+      setBookmarkLoading(true);
+      setBookmarked(!previousState);
+
+      const response = await fetch(`${baseUrl}/bookmarks/${comic.id}`, {
+        method: "POST",
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || "Failed to update bookmark");
+      }
+
+      setBookmarked(result.bookmarked);
+    } catch (error) {
+      console.error(error);
+      setBookmarked(previousState);
+      alert("Failed to update bookmark");
+    } finally {
+      setBookmarkLoading(false);
+    }
+  };
 
   // Chapters State
   const [chapters, setChapters] = useState<ComicChapter[]>([]);
@@ -439,10 +478,33 @@ export default function ComicDetailPage() {
                   <span>Read First Chapter</span>
                 </Link>
 
-                <button className="flex w-full items-center justify-center gap-2 rounded-3xl border border-zinc-800 bg-zinc-900/80 px-5 py-4 text-sm font-semibold text-zinc-300 transition hover:border-indigo-500 hover:bg-indigo-500/10 hover:text-white">
-                  <BookmarkPlus className="h-4 w-4" />
+                <button
+                  onClick={handleBookmark}
+                  disabled={bookmarkLoading}
+                  className={`
+    flex w-full items-center justify-center gap-2
+    rounded-3xl px-5 py-4 text-sm font-semibold
+    transition disabled:opacity-50
+    ${
+      bookmarked
+        ? "border border-indigo-500 bg-indigo-500/15 text-indigo-300"
+        : "border border-zinc-800 bg-zinc-900/80 text-zinc-300 hover:border-indigo-500 hover:bg-indigo-500/10 hover:text-white"
+    }
+  `}
+                >
+                  {bookmarked ? (
+                    <Bookmark className="h-4 w-4 fill-current" />
+                  ) : (
+                    <BookmarkPlus className="h-4 w-4" />
+                  )}
 
-                  <span>Add Bookmark</span>
+                  <span>
+                    {bookmarkLoading
+                      ? "Loading..."
+                      : bookmarked
+                        ? "Bookmarked"
+                        : "Add Bookmark"}
+                  </span>
                 </button>
 
                 {/* Rating */}
