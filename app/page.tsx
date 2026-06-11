@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
 
 type Comic = {
   id: string;
@@ -49,7 +48,6 @@ const statusStyles: Record<string, string> = {
 };
 
 export default function HomePage() {
-  const searchParams = useSearchParams();
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [comics, setComics] = useState<Comic[]>([]);
@@ -65,14 +63,31 @@ export default function HomePage() {
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("");
   const [selectedLanguage, setSelectedLanguage] = useState("");
+  const [sort, setSort] = useState("latest");
+  const [searchInput, setSearchInput] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [selectedParodies, setSelectedParodies] = useState<string[]>([]);
   const [selectedCharacters, setSelectedCharacters] = useState<string[]>([]);
   const [selectedAuthors, setSelectedAuthors] = useState<string[]>([]);
   const [selectedArtists, setSelectedArtists] = useState<string[]>([]);
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
-  const [sort, setSort] = useState("latest");
-  const [searchInput, setSearchInput] = useState("");
+  const [initialized, setInitialized] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setSelectedParodies(
+      params.get("parodies")?.split(",").filter(Boolean) ?? [],
+    );
+    setSelectedCharacters(
+      params.get("characters")?.split(",").filter(Boolean) ?? [],
+    );
+    setSelectedAuthors(params.get("authors")?.split(",").filter(Boolean) ?? []);
+    setSelectedArtists(params.get("artists")?.split(",").filter(Boolean) ?? []);
+    setSelectedGroups(params.get("groups")?.split(",").filter(Boolean) ?? []);
+    setSelectedTags(params.get("tags")?.split(",").filter(Boolean) ?? []);
+    setInitialized(true);
+  }, []);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setSearch(searchInput);
@@ -80,25 +95,6 @@ export default function HomePage() {
     }, 500);
     return () => clearTimeout(timer);
   }, [searchInput]);
-  useEffect(() => {
-    setSelectedParodies(
-      searchParams.get("parodies")?.split(",").filter(Boolean) ?? [],
-    );
-    setSelectedCharacters(
-      searchParams.get("characters")?.split(",").filter(Boolean) ?? [],
-    );
-    setSelectedAuthors(
-      searchParams.get("authors")?.split(",").filter(Boolean) ?? [],
-    );
-    setSelectedArtists(
-      searchParams.get("artists")?.split(",").filter(Boolean) ?? [],
-    );
-    setSelectedGroups(
-      searchParams.get("groups")?.split(",").filter(Boolean) ?? [],
-    );
-    setSelectedTags(searchParams.get("tags")?.split(",").filter(Boolean) ?? []);
-    setPage(1);
-  }, [searchParams]);
 
   const buildQuery = () => {
     const params = new URLSearchParams();
@@ -128,19 +124,23 @@ export default function HomePage() {
 
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_BACKEND_URL}/comics?${buildQuery()}`,
+        {
+          cache: "no-store",
+        },
       );
       const result: HomepageResponse = await response.json();
       setComics(result.data);
       setPagination(result.pagination);
-    } catch (error) {
-      console.error(error);
     } finally {
       setLoading(false);
     }
   };
   useEffect(() => {
+    if (!initialized) return;
+
     fetchComics();
   }, [
+    initialized,
     page,
     search,
     selectedCategory,
@@ -207,6 +207,7 @@ export default function HomePage() {
     selectedArtists.length +
     selectedGroups.length;
   const resetFilters = () => {
+    window.history.replaceState(null, "", "/");
     setSearch("");
     setSearchInput("");
     setSelectedCategory("");
@@ -227,52 +228,6 @@ export default function HomePage() {
   const filteredTags = tags.filter((tag) =>
     tag.toLowerCase().includes(tagSearch.toLowerCase()),
   );
-
-  /* ================= FETCH ================= */
-  const fetchHomepage = async (targetPage: number) => {
-    try {
-      setLoading(true);
-
-      const baseUrl =
-        process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
-
-      const endpoint =
-        targetPage === 1
-          ? `${baseUrl}/comics/homepage`
-          : `${baseUrl}/comics/homepage?page=${targetPage}&limit=10`;
-
-      const response = await fetch(endpoint, {
-        cache: "no-store",
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch homepage");
-      }
-
-      const result: HomepageResponse = await response.json();
-
-      setComics(result.data || []);
-
-      setPagination(
-        result.pagination || {
-          page: 1,
-          limit: 10,
-          has_next: false,
-          has_prev: false,
-          total_data: 0,
-          total_pages: 1,
-        },
-      );
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchHomepage(page);
-  }, [page]);
 
   /* ================= PAGINATION ================= */
   const visiblePages = useMemo(() => {
@@ -299,13 +254,16 @@ export default function HomePage() {
       <header className="sticky top-0 z-50 border-b border-zinc-800 bg-zinc-950/80 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-337.5 items-center justify-between px-4">
           {/* Logo */}
-          <div className="flex items-center gap-3">
+          <Link
+            href="/"
+            className="flex items-center gap-3 hover:opacity-80 transition"
+          >
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-500">
               <BookOpenText className="h-5 w-5 text-white" />
             </div>
 
             <span className="text-lg font-bold tracking-tight">Komify</span>
-          </div>
+          </Link>
 
           {/* Search */}
           <div className="hidden md:block">
