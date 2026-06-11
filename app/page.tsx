@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 type Comic = {
   id: string;
@@ -48,6 +49,7 @@ const statusStyles: Record<string, string> = {
 };
 
 export default function HomePage() {
+  const searchParams = useSearchParams();
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [comics, setComics] = useState<Comic[]>([]);
@@ -64,6 +66,11 @@ export default function HomePage() {
   const [selectedStatus, setSelectedStatus] = useState("");
   const [selectedLanguage, setSelectedLanguage] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [selectedParodies, setSelectedParodies] = useState<string[]>([]);
+  const [selectedCharacters, setSelectedCharacters] = useState<string[]>([]);
+  const [selectedAuthors, setSelectedAuthors] = useState<string[]>([]);
+  const [selectedArtists, setSelectedArtists] = useState<string[]>([]);
+  const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
   const [sort, setSort] = useState("latest");
   const [searchInput, setSearchInput] = useState("");
   useEffect(() => {
@@ -73,6 +80,25 @@ export default function HomePage() {
     }, 500);
     return () => clearTimeout(timer);
   }, [searchInput]);
+  useEffect(() => {
+    setSelectedParodies(
+      searchParams.get("parodies")?.split(",").filter(Boolean) ?? [],
+    );
+    setSelectedCharacters(
+      searchParams.get("characters")?.split(",").filter(Boolean) ?? [],
+    );
+    setSelectedAuthors(
+      searchParams.get("authors")?.split(",").filter(Boolean) ?? [],
+    );
+    setSelectedArtists(
+      searchParams.get("artists")?.split(",").filter(Boolean) ?? [],
+    );
+    setSelectedGroups(
+      searchParams.get("groups")?.split(",").filter(Boolean) ?? [],
+    );
+    setSelectedTags(searchParams.get("tags")?.split(",").filter(Boolean) ?? []);
+    setPage(1);
+  }, [searchParams]);
 
   const buildQuery = () => {
     const params = new URLSearchParams();
@@ -84,6 +110,15 @@ export default function HomePage() {
     if (selectedStatus) params.set("status", selectedStatus);
     if (selectedLanguage) params.set("language", selectedLanguage);
     if (selectedTags.length) params.set("tags", selectedTags.join(","));
+    if (selectedParodies.length)
+      params.set("parodies", selectedParodies.join(","));
+    if (selectedCharacters.length)
+      params.set("characters", selectedCharacters.join(","));
+    if (selectedAuthors.length)
+      params.set("authors", selectedAuthors.join(","));
+    if (selectedArtists.length)
+      params.set("artists", selectedArtists.join(","));
+    if (selectedGroups.length) params.set("groups", selectedGroups.join(","));
     if (sort) params.set("sort", sort);
     return params.toString();
   };
@@ -112,6 +147,11 @@ export default function HomePage() {
     selectedStatus,
     selectedLanguage,
     selectedTags,
+    selectedParodies,
+    selectedCharacters,
+    selectedAuthors,
+    selectedArtists,
+    selectedGroups,
     sort,
   ]);
   const categories = [
@@ -160,7 +200,12 @@ export default function HomePage() {
     Number(!!selectedCategory) +
     Number(!!selectedStatus) +
     Number(!!selectedLanguage) +
-    selectedTags.length;
+    selectedTags.length +
+    selectedParodies.length +
+    selectedCharacters.length +
+    selectedAuthors.length +
+    selectedArtists.length +
+    selectedGroups.length;
   const resetFilters = () => {
     setSearch("");
     setSearchInput("");
@@ -168,6 +213,11 @@ export default function HomePage() {
     setSelectedStatus("");
     setSelectedLanguage("");
     setSelectedTags([]);
+    setSelectedParodies([]);
+    setSelectedCharacters([]);
+    setSelectedAuthors([]);
+    setSelectedArtists([]);
+    setSelectedGroups([]);
     setTagSearch("");
     setSort("latest");
     setPage(1);

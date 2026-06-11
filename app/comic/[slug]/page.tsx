@@ -299,6 +299,29 @@ export default function ComicDetailPage() {
     }
   };
 
+  const metadataStyles = {
+    parody:
+      "border-purple-500/20 bg-purple-500/10 text-purple-200 hover:border-purple-500 hover:bg-purple-500/20",
+    character:
+      "border-pink-500/20 bg-pink-500/10 text-pink-200 hover:border-pink-500 hover:bg-pink-500/20",
+    author:
+      "border-sky-500/20 bg-sky-500/10 text-sky-200 hover:border-sky-500 hover:bg-sky-500/20",
+    artist:
+      "border-emerald-500/20 bg-emerald-500/10 text-emerald-200 hover:border-emerald-500 hover:bg-emerald-500/20",
+    group:
+      "border-amber-500/20 bg-amber-500/10 text-amber-200 hover:border-amber-500 hover:bg-amber-500/20",
+    tag: "border-zinc-700 bg-zinc-950/80 text-zinc-300 hover:border-indigo-500 hover:bg-indigo-500/10 hover:text-white",
+  } as const;
+  type MetadataType = keyof typeof metadataStyles;
+  const metadataQueryMap = {
+    parody: "parodies",
+    character: "characters",
+    author: "authors",
+    artist: "artists",
+    group: "groups",
+    tag: "tags",
+  } as const;
+
   if (loadingComic || !comic) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-zinc-950">
@@ -505,26 +528,32 @@ export default function ComicDetailPage() {
                 {[
                   {
                     label: "Parodies",
+                    type: "parody" as MetadataType,
                     values: comic.parodies,
                   },
                   {
                     label: "Characters",
+                    type: "character" as MetadataType,
                     values: comic.characters,
                   },
                   {
                     label: "Authors",
+                    type: "author" as MetadataType,
                     values: comic.authors,
                   },
                   {
                     label: "Artists",
+                    type: "artist" as MetadataType,
                     values: comic.artists,
                   },
                   {
                     label: "Groups",
+                    type: "group" as MetadataType,
                     values: comic.groups,
                   },
                   {
                     label: "Tags",
+                    type: "tag" as MetadataType,
                     values: comic.tags,
                   },
                 ]
@@ -548,12 +577,17 @@ export default function ComicDetailPage() {
                       {/* Values */}
                       <div className="flex flex-wrap gap-2">
                         {item.values.map((value) => (
-                          <button
+                          <Link
                             key={value.id}
-                            className="rounded-xl border border-zinc-800 bg-zinc-950/80 px-3 py-2 text-xs font-medium text-zinc-300 transition hover:border-indigo-500 hover:bg-indigo-500/10 hover:text-white"
+                            href={`/?${metadataQueryMap[item.type]}=${encodeURIComponent(
+                              value.slug || value.name,
+                            )}`}
+                            className={`rounded-xl border px-3 py-2 text-xs font-medium transition ${
+                              metadataStyles[item.type]
+                            }`}
                           >
                             {value.name}
-                          </button>
+                          </Link>
                         ))}
                       </div>
                     </div>
