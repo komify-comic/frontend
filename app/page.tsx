@@ -8,9 +8,11 @@ import {
   BookOpenText,
   Filter,
   RotateCcw,
+  Dices,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
 type Comic = {
   id: string;
@@ -48,6 +50,7 @@ const statusStyles: Record<string, string> = {
 };
 
 export default function HomePage() {
+  const router = useRouter();
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [comics, setComics] = useState<Comic[]>([]);
@@ -229,6 +232,23 @@ export default function HomePage() {
     tag.toLowerCase().includes(tagSearch.toLowerCase()),
   );
 
+  const handleRandomComic = async () => {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/comics/random`,
+      );
+      if (!response.ok) {
+        throw new Error("Failed");
+      }
+
+      const comic = await response.json();
+      router.push(`/comic/${comic.seo_slug ?? comic.id}`);
+    } catch (error) {
+      console.error(error);
+      alert("Failed to load random comic");
+    }
+  };
+
   /* ================= PAGINATION ================= */
   const visiblePages = useMemo(() => {
     const total = pagination.total_pages;
@@ -265,8 +285,8 @@ export default function HomePage() {
             <span className="text-lg font-bold tracking-tight">Komify</span>
           </Link>
 
-          {/* Search */}
-          <div className="hidden md:block">
+          {/* Search + Random */}
+          <div className="hidden items-center gap-2 md:flex">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
               <input
@@ -276,6 +296,23 @@ export default function HomePage() {
                 className="w-100 rounded-xl border border-zinc-800 bg-zinc-900 py-2 pl-10 pr-4 text-sm outline-none transition focus:border-indigo-500"
               />
             </div>
+
+            <button
+              onClick={handleRandomComic}
+              className="
+                flex items-center gap-2
+                rounded-xl border border-indigo-500/20
+                bg-indigo-500/10
+                px-4 py-2
+                text-sm font-medium text-indigo-300
+                transition
+                hover:bg-indigo-500/20
+                hover:text-white
+              "
+            >
+              <Dices className="h-4 w-4" />
+              <span>Random</span>
+            </button>
           </div>
 
           {/* Navigation */}

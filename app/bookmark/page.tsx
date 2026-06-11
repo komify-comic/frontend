@@ -27,7 +27,7 @@ export default function BookmarkPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const PAGE_SIZE = 20;
+  const PAGE_SIZE = 10;
 
   useEffect(() => {
     const fetchBookmarks = async () => {

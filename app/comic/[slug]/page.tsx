@@ -33,6 +33,7 @@ import {
   Check,
   ArrowUpDown,
   Search,
+  Dices,
 } from "lucide-react";
 
 type ComicMetadata = {
@@ -361,6 +362,23 @@ export default function ComicDetailPage() {
     tag: "tags",
   } as const;
 
+  const handleRandomComic = async () => {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/comics/random`,
+      );
+      if (!response.ok) {
+        throw new Error("Failed");
+      }
+
+      const comic = await response.json();
+      router.push(`/comic/${comic.seo_slug ?? comic.id}`);
+    } catch (error) {
+      console.error(error);
+      alert("Failed to load random comic");
+    }
+  };
+
   if (loadingComic || !comic) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-zinc-950">
@@ -385,24 +403,43 @@ export default function ComicDetailPage() {
         {/* Header */}
         <header className="sticky top-0 z-50">
           <div className="flex h-18 items-center justify-between px-6">
-            {/* Left */}
-            <div className="flex items-center gap-4">
-              <Link
-                href="/"
-                className="group flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-900/80 text-zinc-300 transition hover:border-indigo-500 hover:bg-indigo-500/10 hover:text-white"
-              >
-                <ArrowLeft className="h-4 w-4 transition group-hover:-translate-x-0.5" />
-              </Link>
-              {/* Text */}
-              <div className="leading-tight">
-                <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-zinc-500 transition group-hover:text-indigo-300">
-                  Komify
-                </p>
+            <div className="flex items-center justify-between gap-4">
+              {/* Left */}
+              <div className="flex items-center gap-4">
+                <Link
+                  href="/"
+                  className="group flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-900/80 text-zinc-300 transition hover:border-indigo-500 hover:bg-indigo-500/10 hover:text-white"
+                >
+                  <ArrowLeft className="h-4 w-4 transition group-hover:-translate-x-0.5" />
+                </Link>
 
-                <p className="text-sm font-semibold text-white">
-                  Back to Library
-                </p>
+                <div className="leading-tight">
+                  <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-zinc-500">
+                    Komify
+                  </p>
+                  <p className="text-sm font-semibold text-white">
+                    Back to Library
+                  </p>
+                </div>
               </div>
+
+              {/* Right */}
+              <button
+                onClick={handleRandomComic}
+                className="
+                  flex items-center gap-2
+                  rounded-xl border border-indigo-500/20
+                  bg-indigo-500/10
+                  px-4 py-2
+                  text-sm font-medium text-indigo-300
+                  transition
+                  hover:bg-indigo-500/20
+                  hover:text-white
+                "
+              >
+                <Dices className="h-4 w-4" />
+                <span>Random</span>
+              </button>
             </div>
 
             {/* Right */}
