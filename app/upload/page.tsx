@@ -73,13 +73,25 @@ export default function UploadPage() {
           fetch(`${baseUrl}/system/censorships`),
           fetch(`${baseUrl}/system/languages`),
         ]);
-
         const statusesData = await statusesRes.json();
         const censorshipsData = await censorshipsRes.json();
         const languagesData = await languagesRes.json();
         setStatuses(statusesData);
         setCensorships(censorshipsData);
         setLanguages(languagesData);
+
+        const defaultCensorshipId = censorshipsData[0]?.id || "";
+        setChapters([
+          {
+            id: uuidv7(),
+            main: 1,
+            sub: 0,
+            title: "",
+            censorship_id: defaultCensorshipId,
+            language: "en",
+            pages: [],
+          },
+        ]);
       } catch (error) {
         console.error("Failed to fetch common data:", error);
       }
@@ -373,17 +385,7 @@ export default function UploadPage() {
   };
 
   // CHAPTER STATE MANAGEMENT
-  const [chapters, setChapters] = useState<Chapter[]>([
-    {
-      id: uuidv7(),
-      main: 1,
-      sub: 0,
-      title: "",
-      censorship_id: "ea0ab733-43c7-4f73-ad3a-a8451ade7642",
-      language: "en",
-      pages: [],
-    },
-  ]);
+  const [chapters, setChapters] = useState<Chapter[]>([]);
   const getSortedList = (list: Chapter[]) => {
     return [...list].sort((a, b) => {
       if (a.main !== b.main) return a.main - b.main;
@@ -395,6 +397,7 @@ export default function UploadPage() {
       const sortedPrev = getSortedList(prev);
       const lastMain =
         sortedPrev.length > 0 ? sortedPrev[sortedPrev.length - 1].main : 0;
+      const defaultCensorshipId = censorships[0]?.id || "";
       return [
         ...prev,
         {
@@ -402,7 +405,7 @@ export default function UploadPage() {
           main: lastMain + 1,
           sub: 0,
           title: "",
-          censorship_id: "ea0ab733-43c7-4f73-ad3a-a8451ade7642",
+          censorship_id: defaultCensorshipId,
           language: "en",
           pages: [],
         },
