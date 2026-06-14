@@ -550,24 +550,19 @@ export default function HomePage() {
                       className="animate-pulse rounded-2xl border border-zinc-800 bg-zinc-900/40 p-2"
                     >
                       <div className="aspect-2/3 rounded-2xl bg-zinc-800" />
-
                       <div className="mt-3 h-4 rounded bg-zinc-800" />
-
                       <div className="mt-2 h-4 w-2/3 rounded bg-zinc-800" />
                     </div>
                   ))
                 : comics.map((comic) => {
-                    const isCompleted =
-                      comic.status?.name?.toLowerCase() === "complete";
-
                     return (
                       <Link
                         key={comic.id}
                         href={`/comic/${comic.id || comic.legacy_id}`}
-                        className="group block cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="group block cursor-pointer"
                       >
                         {/* Cover */}
-                        <div className="relative aspect-2/3 overflow-hidden rounded-2xl bg-zinc-900 transition duration-300 group-hover:scale-[1.02]">
+                        <div className="relative aspect-2/3 overflow-hidden rounded-2xl bg-zinc-900 transition duration-300 group-hover:scale-[1.02] hover:shadow-lg hover:shadow-indigo-500/20">
                           {/* Cover Image */}
                           {comic.cover_path ? (
                             <img
@@ -578,16 +573,7 @@ export default function HomePage() {
                           ) : (
                             <div className="h-full w-full bg-zinc-800" />
                           )}
-
-                          {/* Top Badges */}
-                          <div className="absolute left-2 top-2 flex flex-wrap gap-2">
-                            {/* NEW */}
-                            {/* {comic.isNew && (
-                              <div className="rounded-lg bg-indigo-500 px-2 py-1 text-[10px] font-semibold text-white">
-                                NEW
-                              </div>
-                            )} */}
-
+                          <div className="absolute left-2 top-2 flex flex-wrap gap-2 opacity-0 transition-opacity duration-300 group-hover:opacity-100 z-10">
                             {/* Status */}
                             <div
                               className={`rounded-lg px-2 py-1 text-[10px] font-semibold text-center uppercase tracking-wider ${
@@ -598,9 +584,7 @@ export default function HomePage() {
                               {comic.status?.name || "Unknown"}
                             </div>
                           </div>
-
-                          {/* Bottom Overlay */}
-                          <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/90 via-black/50 to-transparent p-3">
+                          <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/90 via-black/60 to-transparent p-3 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
                             <div className="flex items-end justify-between gap-3">
                               <div>
                                 <p className="text-xs font-semibold text-white">
@@ -621,7 +605,6 @@ export default function HomePage() {
                         {/* Info */}
                         <div className="mt-3">
                           <div className="relative">
-                            {/* Title */}
                             <h3 className="line-clamp-2 min-h-10 text-sm font-medium leading-5 text-zinc-100 transition group-hover:text-white">
                               {comic.title}
                             </h3>
