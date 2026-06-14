@@ -9,6 +9,7 @@ import {
   Filter,
   RotateCcw,
   Dices,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -325,12 +326,28 @@ export default function HomePage() {
           <div className="hidden items-center gap-2 md:flex">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+
               <input
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="Search comics..."
-                className="w-100 rounded-xl border border-zinc-800 bg-zinc-900 py-2 pl-10 pr-4 text-sm outline-none transition focus:border-indigo-500"
+                className="w-100 rounded-xl border border-zinc-800 bg-zinc-900 py-2 pl-10 pr-10 text-sm outline-none transition focus:border-indigo-500"
               />
+
+              {searchInput && (
+                <button
+                  onClick={() => {
+                    setSearchInput("");
+                    setSearch("");
+                    setPage(1);
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-0.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300"
+                  title="Clear search"
+                  type="button"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
             </div>
 
             <button
