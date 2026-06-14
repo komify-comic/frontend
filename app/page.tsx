@@ -124,12 +124,9 @@ export default function HomePage() {
   const fetchComics = async () => {
     try {
       setLoading(true);
-
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_BACKEND_URL}/comics?${buildQuery()}`,
-        {
-          cache: "no-store",
-        },
+        { cache: "no-store" },
       );
       const result: HomepageResponse = await response.json();
       setComics(result.data);
@@ -138,10 +135,49 @@ export default function HomePage() {
       setLoading(false);
     }
   };
+
+  const fetchComicsSilent = async () => {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/comics?${buildQuery()}`,
+        { cache: "no-store" },
+      );
+      if (response.ok) {
+        const result: HomepageResponse = await response.json();
+        setComics(result.data);
+        setPagination(result.pagination);
+      }
+    } catch (error) {
+      console.error("Failed to auto-update comics:", error);
+    }
+  };
   useEffect(() => {
     if (!initialized) return;
 
     fetchComics();
+  }, [
+    initialized,
+    page,
+    search,
+    selectedCategory,
+    selectedStatus,
+    selectedLanguage,
+    selectedTags,
+    selectedParodies,
+    selectedCharacters,
+    selectedAuthors,
+    selectedArtists,
+    selectedGroups,
+    sort,
+  ]);
+
+  useEffect(() => {
+    if (!initialized) return;
+
+    const interval = setInterval(() => {
+      fetchComicsSilent();
+    }, 5000);
+    return () => clearInterval(interval);
   }, [
     initialized,
     page,
