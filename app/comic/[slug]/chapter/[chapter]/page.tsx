@@ -9,8 +9,9 @@ import {
   ArrowLeft,
   ChevronLeft,
   ChevronRight,
-  BookOpen,
   Pencil,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
 
 type ChapterPage = {
@@ -64,6 +65,7 @@ export default function ChapterReaderPage() {
     }[]
   >([]);
   const [chapterInput, setChapterInput] = useState("");
+  const [zoom, setZoom] = useState(80);
 
   const baseUrl =
     process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
@@ -128,6 +130,12 @@ export default function ChapterReaderPage() {
     }
 
     router.push(`/comic/${slug}/chapter/${found.id}`);
+  };
+
+  const getZoomClass = () => {
+    if (zoom === 60) return "max-w-2xl";
+    if (zoom === 100) return "max-w-5xl";
+    return "max-w-4xl";
   };
 
   if (loading) {
@@ -196,7 +204,9 @@ export default function ChapterReaderPage() {
       {/* Reader */}
       <main className="mx-auto flex max-w-5xl flex-col items-center px-4 py-6">
         {/* Reader Pages */}
-        <div className="w-full space-y-4">
+        <div
+          className={`w-full ${getZoomClass()} mx-auto space-y-4 transition-all duration-300`}
+        >
           {chapter.pages.map((page) => (
             <div
               key={page.id}
@@ -219,7 +229,6 @@ export default function ChapterReaderPage() {
                 <p className="text-sm font-medium text-white">
                   Page {page.page_number}
                 </p>
-
                 <p className="text-xs text-zinc-400">{page.filename}</p>
               </div>
             </div>
@@ -228,49 +237,92 @@ export default function ChapterReaderPage() {
 
         {/* Floating Navigation */}
         <div className="fixed right-6 bottom-6 z-50">
-          <div className="flex items-center gap-2 rounded-3xl border border-zinc-800 bg-zinc-900/95 p-2 shadow-2xl backdrop-blur-xl">
-            {/* Prev */}
-            <button
-              onClick={goPrevChapter}
-              disabled={!prevChapter}
-              className={`flex h-12 w-12 items-center justify-center rounded-2xl transition ${
-                prevChapter
-                  ? "text-zinc-300 hover:bg-zinc-800 hover:text-white"
-                  : "cursor-not-allowed text-zinc-700"
-              }`}
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
+          <div className="flex items-center gap-1.5 rounded-full border border-zinc-800 bg-zinc-900/90 p-1.5 shadow-2xl backdrop-blur-xl">
+            <div className="flex items-center">
+              {/* Zoom Out */}
+              <button
+                onClick={() => setZoom((prev) => Math.max(60, prev - 20))}
+                disabled={zoom <= 60}
+                className={`flex h-10 w-10 items-center justify-center rounded-full text-zinc-400 transition-all ${
+                  zoom > 60
+                    ? "hover:bg-zinc-800 hover:text-white"
+                    : "cursor-not-allowed opacity-30"
+                }`}
+                title="Zoom Out"
+              >
+                <ZoomOut className="h-4 w-4" />
+              </button>
 
-            {/* Chapter Input */}
-            <div className="flex items-center gap-2 rounded-2xl bg-zinc-800/80 px-3 py-2">
-              <span className="text-xs text-zinc-500">Chapter</span>
+              {/* Indikator Persentase Zoom */}
+              <span className="w-12 text-center text-[11px] font-semibold tracking-wide text-zinc-400 select-none">
+                {zoom}%
+              </span>
 
-              <input
-                type="text"
-                value={chapterInput}
-                onChange={(e) => setChapterInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    jumpToChapter();
-                  }
-                }}
-                className="w-16 bg-transparent text-center text-sm font-semibold text-white outline-none"
-              />
+              {/* Zoom In */}
+              <button
+                onClick={() => setZoom((prev) => Math.min(100, prev + 20))}
+                disabled={zoom >= 100}
+                className={`flex h-10 w-10 items-center justify-center rounded-full text-zinc-400 transition-all ${
+                  zoom < 100
+                    ? "hover:bg-zinc-800 hover:text-white"
+                    : "cursor-not-allowed opacity-30"
+                }`}
+                title="Zoom In"
+              >
+                <ZoomIn className="h-4 w-4" />
+              </button>
             </div>
 
-            {/* Next */}
-            <button
-              onClick={goNextChapter}
-              disabled={!nextChapter}
-              className={`flex h-12 w-12 items-center justify-center rounded-2xl transition ${
-                nextChapter
-                  ? "bg-indigo-500 text-white hover:bg-indigo-400"
-                  : "cursor-not-allowed bg-zinc-800 text-zinc-600"
-              }`}
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
+            {/* SEPARATOR LINE */}
+            <div className="h-5 w-px bg-zinc-800 mx-1" />
+
+            <div className="flex items-center gap-1.5">
+              {/* Prev Chapter */}
+              <button
+                onClick={goPrevChapter}
+                disabled={!prevChapter}
+                className={`flex h-10 w-10 items-center justify-center rounded-full text-zinc-400 transition-all ${
+                  prevChapter
+                    ? "hover:bg-zinc-800 hover:text-white"
+                    : "cursor-not-allowed opacity-30"
+                }`}
+                title="Previous Chapter"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+
+              {/* Chapter Input Box */}
+              <div className="flex items-center gap-1.5 rounded-full bg-zinc-800/50 px-3.5 py-1.5 border border-zinc-800/40 focus-within:border-indigo-500/50 transition-all">
+                <span className="text-[11px] font-medium text-zinc-500 select-none uppercase tracking-wider">
+                  Ch
+                </span>
+                <input
+                  type="text"
+                  value={chapterInput}
+                  onChange={(e) => setChapterInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      jumpToChapter();
+                    }
+                  }}
+                  className="w-10 bg-transparent text-center text-sm font-bold text-zinc-100 outline-none placeholder-zinc-600"
+                />
+              </div>
+
+              {/* Next Chapter */}
+              <button
+                onClick={goNextChapter}
+                disabled={!nextChapter}
+                className={`flex h-10 w-10 items-center justify-center rounded-full transition-all ${
+                  nextChapter
+                    ? "bg-indigo-600 text-white hover:bg-indigo-500 hover:scale-105 shadow-md shadow-indigo-600/20"
+                    : "cursor-not-allowed bg-zinc-800/50 text-zinc-600 opacity-40"
+                }`}
+                title="Next Chapter"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            </div>
           </div>
         </div>
       </main>
