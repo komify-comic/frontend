@@ -195,11 +195,6 @@ export default function EditChapterPage() {
         payload.deleted_pages = validDeletedPages;
       }
 
-      if (pages.length === 0) {
-        alert("Chapter must contain at least 1 page");
-        return;
-      }
-
       const formData = new FormData();
       formData.append("document", JSON.stringify(payload));
       pages.forEach((page) => {
@@ -248,7 +243,7 @@ export default function EditChapterPage() {
       }
 
       alert("Chapter updated successfully");
-      router.refresh();
+      router.push(`/comic/${slug}`);
     } catch (error) {
       console.error(error);
 

@@ -190,11 +190,6 @@ export default function CreateChapterPage() {
 
   const handleCreateChapter = async () => {
     try {
-      if (pages.length === 0) {
-        alert("Please upload at least one page");
-        return;
-      }
-
       const payload = {
         comic_id: slug,
         title: chapterTitle.trim() || `Chapter ${nextChapterNumber}`,

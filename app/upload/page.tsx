@@ -186,11 +186,6 @@ export default function UploadPage() {
       // PAGES
       // =========================
       for (const chapter of sortedChapters) {
-        if (!chapter.pages.length) {
-          alert(`Chapter ${chapter.main} has no pages`);
-          return;
-        }
-
         for (let i = 0; i < chapter.pages.length; i++) {
           const pageSrc = chapter.pages[i];
           // blob url
