@@ -111,10 +111,6 @@ export default function UploadPage() {
         alert("Title is required");
         return;
       }
-      if (!coverImage) {
-        alert("Cover is required");
-        return;
-      }
       if (!sortedChapters.length) {
         alert("At least 1 chapter is required");
         return;
@@ -183,7 +179,7 @@ export default function UploadPage() {
         const coverBlob = await response.blob();
         formData.append("cover", coverBlob, "cover.jpg");
       } else {
-        formData.append("cover", coverImage);
+        formData.append("cover", coverImage!);
       }
 
       // =========================
