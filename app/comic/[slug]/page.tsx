@@ -507,7 +507,7 @@ export default function ComicDetailPage() {
               {/* Actions */}
               <div className="mt-5 space-y-3">
                 <Link
-                  href="#"
+                  href={`/comic/${comic.id}/chapter/${chapters[0].id}`}
                   className="group flex w-full items-center justify-center gap-2 rounded-3xl bg-indigo-500 px-5 py-4 text-sm font-bold text-white shadow-xl shadow-indigo-500/20 transition hover:scale-[1.02] hover:bg-indigo-400"
                 >
                   <BookOpen className="h-4 w-4 transition group-hover:scale-110" />
@@ -519,15 +519,15 @@ export default function ComicDetailPage() {
                   onClick={handleBookmark}
                   disabled={bookmarkLoading}
                   className={`
-    flex w-full items-center justify-center gap-2
-    rounded-3xl px-5 py-4 text-sm font-semibold
-    transition disabled:opacity-50
-    ${
-      bookmarked
-        ? "border border-indigo-500 bg-indigo-500/15 text-indigo-300"
-        : "border border-zinc-800 bg-zinc-900/80 text-zinc-300 hover:border-indigo-500 hover:bg-indigo-500/10 hover:text-white"
-    }
-  `}
+                    flex w-full items-center justify-center gap-2
+                    rounded-3xl px-5 py-4 text-sm font-semibold
+                    transition disabled:opacity-50
+                    ${
+                      bookmarked
+                        ? "border border-indigo-500 bg-indigo-500/15 text-indigo-300"
+                        : "border border-zinc-800 bg-zinc-900/80 text-zinc-300 hover:border-indigo-500 hover:bg-indigo-500/10 hover:text-white"
+                    }
+                  `}
                 >
                   {bookmarked ? (
                     <Bookmark className="h-4 w-4 fill-current" />
@@ -980,13 +980,8 @@ function SortableChapterCard({
     transition,
     willChange: "transform",
   };
-
   const baseUrl =
     process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
-
-  const thumbnail = chapter.pages?.[0]?.filepath
-    ? `${baseUrl}${chapter.pages[0].filepath}`
-    : null;
 
   return (
     <div
@@ -1003,7 +998,6 @@ function SortableChapterCard({
       {/* Left */}
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-4">
-          {/* Kontainer Dinamis untuk Aksi Kiri (Mencegah Layout Pincang) */}
           <div className="relative h-12 w-12 shrink-0">
             {/* Drag Handle */}
             <button
@@ -1041,7 +1035,6 @@ function SortableChapterCard({
             </span>
           </div>
 
-          {/* Info Text (Hierarki Diperbaiki) */}
           <div className="min-w-0 flex-1 shared-info-layout">
             <h3 className="truncate text-sm font-semibold text-zinc-100 group-hover:text-indigo-400 transition-colors">
               {chapter.title}
