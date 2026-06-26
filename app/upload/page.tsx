@@ -1058,7 +1058,7 @@ export default function UploadPage() {
                                 type="file"
                                 // GANTI INI: Samakan dengan htmlFor milik label di atas
                                 id={`input-file-chapter-${chapter.id}`}
-                                accept="image/*"
+                                accept="image/*,.pdf"
                                 className="hidden"
                                 multiple
                                 onChange={(e) =>
@@ -1143,7 +1143,7 @@ export default function UploadPage() {
                                   <input
                                     type="file"
                                     id={`replace-file-chapter-${chapter.id}`}
-                                    accept="image/*"
+                                    accept="image/*,.pdf"
                                     className="hidden"
                                     multiple
                                     onChange={(e) =>
@@ -1396,7 +1396,7 @@ export default function UploadPage() {
                       <input
                         type="file"
                         id="modal-file-append-input"
-                        accept="image/*"
+                        accept="image/*,.pdf"
                         className="hidden"
                         multiple
                         onChange={handleAppendPages}
